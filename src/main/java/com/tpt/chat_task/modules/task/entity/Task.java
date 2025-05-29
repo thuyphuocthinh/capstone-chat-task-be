@@ -72,4 +72,10 @@ public class Task {
             name = "task_users"
     )
     private List<User> users = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL, mappedBy = "task")
+    private List<CheckList> checklists = new ArrayList<>();
+
+    @OneToMany(mappedBy = "task", fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
+    private List<TaskComment> taskComments = new ArrayList<>();
 }

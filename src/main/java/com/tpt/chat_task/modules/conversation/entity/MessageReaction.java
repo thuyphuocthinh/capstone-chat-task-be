@@ -11,7 +11,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "message_icons")
+@Table(name = "message_reactions")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

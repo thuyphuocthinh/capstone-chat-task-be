@@ -1,44 +1,34 @@
-package com.tpt.chat_task.modules.notification.entity;
+package com.tpt.chat_task.modules.task.entity;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "checklists")
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 @Builder
-public class Notification {
+public class CheckList {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(length = 36, updatable = false, nullable = false)
     private UUID id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
-    @NotNull(message = "Notification type cannot be null")
-    private NOTIFICATION_TYPE type;
-
     @Column(name = "title", nullable = false)
+    @NotBlank(message = "Label title cannot be blank")
     private String title;
-
-    @Column(columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private JsonNode data;
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
@@ -47,4 +37,11 @@ public class Notification {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "task_id", nullable = false)
+    private Task task;
+
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL, mappedBy = "checklist")
+    private List<CheckListItem> checklistItems = new ArrayList<>();
 }
