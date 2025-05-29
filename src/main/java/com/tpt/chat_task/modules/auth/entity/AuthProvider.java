@@ -29,7 +29,7 @@ public class AuthProvider {
     @Column(nullable = false, updatable = false, unique = true)
     private UUID id;
 
-    @Column(nullable = false, name = "provider_id", unique = true, length = 512)
+    @Column(nullable = false, name = "provider_id")
     @NotBlank(message = "Provider id cannot be blank")
     private String providerId;
 

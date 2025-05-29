@@ -5,6 +5,7 @@ import com.tpt.chat_task.modules.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -39,6 +40,7 @@ public class Otp {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10, name = "status")
+    @NotNull(message = "Otp status cannot be null")
     private OTP_STATUS status = OTP_STATUS.PENDING;
 
     @Column(nullable = false, name = "expired_at")

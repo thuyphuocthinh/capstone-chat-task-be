@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.task.entity;
 
+import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -30,7 +31,7 @@ public class TaskBoard {
     @NotBlank(message = "Task board title cannot be blank")
     private String title;
 
-    @Column(name = "background_url", nullable = false)
+    @Column(name = "background_url", nullable = false, length = 512)
     @NotBlank(message = "Background url cannot be blank")
     private String backgroundUrl;
 
@@ -42,6 +43,10 @@ public class TaskBoard {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "taskBoard")
     private List<TaskGroup> taskGroups = new ArrayList<>();
+
+    @ManyToOne
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private Workspace workspace;
 }

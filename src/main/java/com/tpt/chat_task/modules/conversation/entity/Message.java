@@ -6,6 +6,7 @@ import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,7 +38,8 @@ public class Message {
     private String parentId;
 
     @Enumerated(EnumType.STRING)
-    @NotBlank(message = "Message type cannot be blank")
+    @Column(name = "type", nullable = false, length = 20)
+    @NotNull(message = "Message type cannot be null")
     private MESSAGE_TYPE type;
 
     @Column(nullable = false, name = "is_pinned")

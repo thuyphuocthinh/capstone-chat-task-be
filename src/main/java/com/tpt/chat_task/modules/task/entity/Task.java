@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "task_boards")
+@Table(name = "tasks")
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
@@ -45,16 +45,11 @@ public class Task {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "task_group_id", nullable = false)
     private TaskGroup taskGroup;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            joinColumns = @JoinColumn(name = "task_id", nullable = false),
-            inverseJoinColumns = @JoinColumn(name = "label_id", nullable = false),
-            name = "task_labels"
-    )
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL, mappedBy = "task")
     private List<Label> labels = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)

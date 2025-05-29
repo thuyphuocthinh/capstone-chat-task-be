@@ -29,7 +29,7 @@ public class Notification {
     private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
+    @Column(name = "type", nullable = false, length = 50)
     @NotNull(message = "Notification type cannot be null")
     private NOTIFICATION_TYPE type;
 
