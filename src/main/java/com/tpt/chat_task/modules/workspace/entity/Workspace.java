@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.workspace.entity;
 
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.task.entity.TaskBoard;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -46,4 +47,7 @@ public class Workspace {
 
     @OneToMany(mappedBy = "workspace", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Conversation> conversations = new ArrayList<>();
+
+    @OneToMany(mappedBy = "workspace", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TaskBoard> taskBoards = new ArrayList<>();
 }

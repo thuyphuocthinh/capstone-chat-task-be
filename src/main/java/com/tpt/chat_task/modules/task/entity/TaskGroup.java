@@ -38,7 +38,7 @@ public class TaskGroup {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "task_board_id", nullable = false)
     private TaskBoard taskBoard;
 

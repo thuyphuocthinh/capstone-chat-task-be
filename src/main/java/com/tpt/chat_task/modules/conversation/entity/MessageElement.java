@@ -4,6 +4,7 @@ import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,8 +39,8 @@ public class MessageElement {
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
-    @NotBlank(message = "Message element type cannot be null")
+    @Column(name = "type", nullable = false, length = 20)
+    @NotNull(message = "Message element type cannot be null")
     private MESSAGE_ELEMENT_TYPE type;
 
 

@@ -3,6 +3,7 @@ package com.tpt.chat_task.modules.conversation.entity;
 import com.tpt.chat_task.modules.conversation.enums.ICON_TYPE;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,7 +31,7 @@ public class Icon {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 50)
-    @NotBlank(message = "Icon type cannot be null")
+    @NotNull(message = "Icon type cannot be null")
     private ICON_TYPE type;
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")

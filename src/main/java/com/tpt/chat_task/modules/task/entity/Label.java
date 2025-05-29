@@ -44,6 +44,7 @@ public class Label {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ManyToMany(mappedBy = "labels")
-    private List<Task> tasks = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "task_id", nullable = false)
+    private Task task;
 }

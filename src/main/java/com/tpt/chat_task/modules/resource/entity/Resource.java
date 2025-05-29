@@ -5,6 +5,7 @@ import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 import com.tpt.chat_task.modules.task.entity.Task;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,7 +34,7 @@ public class Resource {
     private String link;
 
     @Enumerated(EnumType.STRING)
-    @NotBlank(message = "Resource type cannot be blank")
+    @NotNull(message = "Resource type cannot be null")
     @Column(name = "type", nullable = false, length = 10)
     private RESOURCE_TYPE type;
 

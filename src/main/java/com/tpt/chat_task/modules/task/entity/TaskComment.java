@@ -3,6 +3,7 @@ package com.tpt.chat_task.modules.task.entity;
 import com.tpt.chat_task.modules.task.enums.TASK_COMMENT_TYPE;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,7 +35,8 @@ public class TaskComment {
     private String parentId;
 
     @Enumerated(EnumType.STRING)
-    @NotBlank(message = "Message type cannot be blank")
+    @NotNull(message = "Message type cannot be null")
+    @Column(name = "type", nullable = false, length = 20)
     private TASK_COMMENT_TYPE type;
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
