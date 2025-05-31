@@ -53,8 +53,7 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        assert jwt != null;
-        if(!jwt.isEmpty()) {
+        if(jwt != null) {
             try {
                 SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
                 Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(jwt).getPayload();
@@ -100,7 +99,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader(JwtConstant.JWT_HEADER);
-        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+        if (headerAuth != null && headerAuth.startsWith(JwtConstant.JWT_BEARER)) {
             String jwt = headerAuth.substring(7).trim();
             if (jwt.isBlank()) {
                 throw new JwtException("Access token is empty");

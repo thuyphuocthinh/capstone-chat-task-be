@@ -71,6 +71,7 @@ public class JwtProvider {
                 .signWith(secretKey)
                 .compact();
     }
+
     // generate refresh token
     public String generateRefreshToken(Authentication authentication) {
         log.info("[JwtTokenGenerator:generateRefreshToken] Token Creation Started for: {}", authentication.getName());

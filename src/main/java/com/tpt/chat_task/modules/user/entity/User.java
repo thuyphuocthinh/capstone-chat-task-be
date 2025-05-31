@@ -88,9 +88,6 @@ public class User {
     }
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
-    private List<Otp> otpList = new ArrayList<>();
-
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
     private List<Token> tokenList = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")

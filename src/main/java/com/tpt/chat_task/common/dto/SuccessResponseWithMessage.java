@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class SuccessResponse {
+public class SuccessResponseWithMessage {
     @Builder.Default
     private String status = RESPONSE_STATUS.SUCCESS.toString();
-    private Object data;
+    private String message;
 }

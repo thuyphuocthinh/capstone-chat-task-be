@@ -2,6 +2,7 @@ package com.tpt.chat_task.modules.auth.entity;
 
 import com.tpt.chat_task.modules.user.entity.User;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,8 +25,8 @@ public class Token {
     @Column(length = 36, updatable = false, nullable = false)
     private UUID id;
 
-    @Column(nullable = false, unique = true, name = "refresh_token")
-    @Lob
+    @NotBlank(message = "Refresh token cannot be null")
+    @Column(nullable = false, unique = true, name = "refresh_token", length = 512)
     private String refreshToken;
 
     @Column(nullable = false, name = "revoked")
