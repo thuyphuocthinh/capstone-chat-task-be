@@ -13,7 +13,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -29,13 +28,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
-@AllArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
     @Value("${jwt.secret}")
-    private final String jwtSecret;
+    private String jwtSecret;
 
     private final CustomUserDetailsService customUserDetailsService;
-    private final CustomUserDetails customUserDetails;
+
+    public JwtFilter(CustomUserDetailsService customUserDetailsService) {
+        this.customUserDetailsService = customUserDetailsService;
+    }
 
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
@@ -52,8 +53,7 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        assert jwt != null;
-        if(!jwt.isEmpty()) {
+        if(jwt != null) {
             try {
                 SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
                 Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(jwt).getPayload();
@@ -99,7 +99,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader(JwtConstant.JWT_HEADER);
-        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+        if (headerAuth != null && headerAuth.startsWith(JwtConstant.JWT_BEARER)) {
             String jwt = headerAuth.substring(7).trim();
             if (jwt.isBlank()) {
                 throw new JwtException("Access token is empty");

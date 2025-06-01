@@ -2,7 +2,10 @@ package com.tpt.chat_task.modules.auth.entity;
 
 import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.enums.USER_STATUS;
+import lombok.Data;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -19,9 +22,13 @@ public class CustomUserDetails implements UserDetails {
         return user;
     }
 
+    public String getUserId() {
+        return this.user.getId().toString();
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return List.of(new SimpleGrantedAuthority(user.getRole().name()));
     }
 
     @Override

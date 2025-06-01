@@ -8,6 +8,7 @@ import org.apache.coyote.BadRequestException;
 import org.hibernate.HibernateException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.transaction.TransactionSystemException;
@@ -33,6 +34,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
                 response,
                 HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseBody
+    public ResponseEntity<ErrorResponse> handleNotReadableException(HttpMessageNotReadableException ex) {
+        ErrorResponse response = ErrorResponse.builder().message(ex.getMessage()).build();
+        return new ResponseEntity<>(
+                response,
+                HttpStatus.BAD_REQUEST
         );
     }
 
