@@ -33,7 +33,6 @@ public class AuthProvider {
     @NotBlank(message = "Provider id cannot be blank")
     private String providerId;
 
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "provider", length = 10)
     @NotNull(message = "Auth provider cannot be null")
