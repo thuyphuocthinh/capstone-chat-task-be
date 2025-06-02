@@ -18,5 +18,5 @@ public interface AuthService {
     public String forgotPassword(ForgotPasswordRequest forgotPasswordRequest) throws NotFoundException, IOException, MessagingException;
     public VerifyOtpResponse verifyOtpBeforeReset(VerifyOtpRequest verifyOtpRequest) throws NotFoundException, IOException, MessagingException;
     public String resetPassword(ResetPasswordRequest resetPasswordRequest) throws NotFoundException, IOException, MessagingException;
-    // loginGoogle
+    public LoginResponse googleLogin(GoogleUserDTO googleUserDTO, String userAgent, String ipAddress) throws NotFoundException, IOException, MessagingException;
 }

@@ -9,10 +9,12 @@ import com.tpt.chat_task.modules.auth.constant.AuthError;
 import com.tpt.chat_task.modules.auth.dto.request.*;
 import com.tpt.chat_task.modules.auth.dto.response.LoginResponse;
 import com.tpt.chat_task.modules.auth.dto.response.VerifyOtpResponse;
+import com.tpt.chat_task.modules.auth.entity.AuthProvider;
 import com.tpt.chat_task.modules.auth.entity.CustomUserDetails;
 import com.tpt.chat_task.modules.auth.entity.Otp;
 import com.tpt.chat_task.modules.auth.entity.Token;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
+import com.tpt.chat_task.modules.auth.repository.AuthProviderRepository;
 import com.tpt.chat_task.modules.auth.repository.OtpRepository;
 import com.tpt.chat_task.modules.auth.repository.TokenRepository;
 import com.tpt.chat_task.modules.auth.service.AuthService;
@@ -58,7 +60,9 @@ public class AuthServiceImpl implements AuthService {
 
     private final CacheBlackList cacheBlackList;
 
-    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository, CacheBlackList cacheBlackList) {
+    private final AuthProviderRepository authProviderRepository;
+
+    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository, CacheBlackList cacheBlackList, AuthProviderRepository authProviderRepository) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.customUserDetailsService = customUserDetailsService;
@@ -68,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
         this.emailService = emailService;
         this.otpRepository = otpRepository;
         this.cacheBlackList = cacheBlackList;
+        this.authProviderRepository = authProviderRepository;
     }
 
     @Value("${jwt.refreshTokenExpiration}")
@@ -272,5 +277,53 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository.save(findUser);
 
         return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    private void saveAuthProvider(GoogleUserDTO googleUserDTO, User user) {
+        AuthProvider authProvider = AuthProvider.builder()
+                .providerId(googleUserDTO.getSub())
+                .user(user)
+                .build();
+
+        this.authProviderRepository.save(authProvider);
+    }
+
+    @Override
+    public LoginResponse googleLogin(GoogleUserDTO googleUserDTO, String userAgent, String ipAddress) throws NotFoundException, IOException, MessagingException {
+        String email = googleUserDTO.getEmail();
+
+        User createdOrExist = this.userRepository.findByEmail(email).orElseGet(() -> {
+            User newUser = User.builder()
+                    .email(email)
+                    .firstName(googleUserDTO.getGivenName())
+                    .lastName(googleUserDTO.getFamilyName())
+                    .status(USER_STATUS.ACTIVE)
+                    .build();
+            User savedUser = this.userRepository.save(newUser);
+            this.saveAuthProvider(googleUserDTO, savedUser);
+            return savedUser;
+        });
+
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // Tạo AccessToken & RefreshToken từ `authentication`
+        String accessToken = jwtProvider.generateAccessToken(authentication);
+        String refreshToken = jwtProvider.generateRefreshToken(authentication);
+
+        Token token = Token.builder()
+                .user(createdOrExist)
+                .refreshToken(refreshToken)
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
+                .expiredAt(LocalDateTime.now().plus(jwtRefreshTokenExpirationMs, ChronoUnit.MILLIS))
+                .build();
+        this.tokenRepository.save(token);
+
+        return LoginResponse.builder().
+                accessToken(accessToken).
+                refreshToken(refreshToken).
+                build();
     }
 }
