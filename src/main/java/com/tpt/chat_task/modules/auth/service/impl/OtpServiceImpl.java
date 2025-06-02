@@ -33,6 +33,10 @@ public class OtpServiceImpl implements OtpService {
             throw new BadRequestException(AuthError.OTP_EXPIRED);
         }
 
+        if(findOtp.getStatus().equals(OTP_STATUS.VERIFIED)) {
+            throw new BadRequestException(AuthError.INVALID_OTP);
+        }
+
         findOtp.setStatus(OTP_STATUS.VERIFIED);
         this.otpRepository.save(findOtp);
 

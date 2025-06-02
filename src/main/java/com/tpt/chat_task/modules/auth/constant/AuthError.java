@@ -13,4 +13,5 @@ public class AuthError {
     public static final String OTP_EXPIRED = "OTP expired";
     public static final String EMAIL_ALREADY_EXISTS = "Email already exists";
     public static final String PASSWORD_MISMATCH = "Password mismatch";
+    public static final String INVALID_OTP   = "Invalid otp";
 }

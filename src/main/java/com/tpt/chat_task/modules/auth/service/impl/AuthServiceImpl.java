@@ -4,9 +4,11 @@ import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.email.service.EmailService;
 import com.tpt.chat_task.infrastructure.email.utils.Template;
+import com.tpt.chat_task.infrastructure.redis.repository.CacheBlackList;
 import com.tpt.chat_task.modules.auth.constant.AuthError;
 import com.tpt.chat_task.modules.auth.dto.request.*;
 import com.tpt.chat_task.modules.auth.dto.response.LoginResponse;
+import com.tpt.chat_task.modules.auth.dto.response.VerifyOtpResponse;
 import com.tpt.chat_task.modules.auth.entity.CustomUserDetails;
 import com.tpt.chat_task.modules.auth.entity.Otp;
 import com.tpt.chat_task.modules.auth.entity.Token;
@@ -54,7 +56,9 @@ public class AuthServiceImpl implements AuthService {
 
     private final OtpRepository otpRepository;
 
-    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository) {
+    private final CacheBlackList cacheBlackList;
+
+    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository, CacheBlackList cacheBlackList) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.customUserDetailsService = customUserDetailsService;
@@ -63,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
         this.otpService = otpService;
         this.emailService = emailService;
         this.otpRepository = otpRepository;
+        this.cacheBlackList = cacheBlackList;
     }
 
     @Value("${jwt.refreshTokenExpiration}")
@@ -227,6 +232,7 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = logoutRequest.getRefreshToken();
         String accessToken = logoutRequest.getAccessToken();
         // add access token to cache black list
+        cacheBlackList.addNewAccessToken(accessToken);
         this.jwtProvider.verifyRefreshToken(refreshToken);
         return this.jwtProvider.revokeRefreshToken(refreshToken);
     }
@@ -238,15 +244,17 @@ public class AuthServiceImpl implements AuthService {
         String otp = this.otpService.generateOtp(email);
         String template = Template.getOtpHtmlTemplateAuth(otp);
         this.emailService.sendEmailWithHtml(email, "VERIFY EMAIL TPT_SHOP", template);
-        return RESPONSE_STATUS.SUCCESS.toString();
+        return "Otp was successfully sent to your email. Please verify your email.";
     }
 
     @Override
-    public String verifyOtpBeforeReset(VerifyOtpRequest verifyOtpRequest) throws NotFoundException, IOException {
+    public VerifyOtpResponse verifyOtpBeforeReset(VerifyOtpRequest verifyOtpRequest) throws NotFoundException, IOException {
         String otp = verifyOtpRequest.getOtp();
         this.otpService.validateOtp(otp);
         Otp findOtp = this.otpRepository.findByOtp(otp);
-        return findOtp.getEmail();
+        return VerifyOtpResponse.builder()
+                .email(findOtp.getEmail())
+                .build();
     }
 
     @Override

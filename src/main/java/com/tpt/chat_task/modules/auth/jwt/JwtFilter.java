@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.auth.jwt;
 
 import com.tpt.chat_task.common.constant.JwtConstant;
+import com.tpt.chat_task.infrastructure.redis.repository.CacheBlackList;
 import com.tpt.chat_task.modules.auth.entity.CustomUserDetails;
 import com.tpt.chat_task.modules.auth.service.impl.CustomUserDetailsService;
 import io.jsonwebtoken.Claims;
@@ -34,8 +35,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final CustomUserDetailsService customUserDetailsService;
 
-    public JwtFilter(CustomUserDetailsService customUserDetailsService) {
+    private final CacheBlackList cacheBlackList;
+
+    public JwtFilter(CustomUserDetailsService customUserDetailsService, CacheBlackList cacheBlackList) {
         this.customUserDetailsService = customUserDetailsService;
+        this.cacheBlackList = cacheBlackList;
     }
 
     @Override
@@ -46,6 +50,12 @@ public class JwtFilter extends OncePerRequestFilter {
         String jwt = "";
         try {
             jwt = parseJwt(request);
+            if(cacheBlackList.findAccessToken(jwt)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"status\": \"error\", \"message\": \"Invalid access token\"}");
+                return;
+            }
         } catch (JwtException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
