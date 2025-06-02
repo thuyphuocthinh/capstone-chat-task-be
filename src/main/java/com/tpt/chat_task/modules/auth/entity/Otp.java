@@ -29,7 +29,7 @@ public class Otp {
     @Column(unique = true, nullable = false, updatable = false)
     private UUID id;
 
-    @Column(nullable = false, unique = true, name = "email")
+    @Column(nullable = false, name = "email")
     @Email(message = "Email is invalid")
     @Size(min = 10, max = 255, message = "Email is too long")
     private String email;

@@ -104,8 +104,8 @@ public class AuthController {
     public ResponseEntity<?> verifyOtpHandler(
             @RequestBody @Valid VerifyOtpRequest request
     ) throws MessagingException, IOException {
-        SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
-                .message(this.authService.verifyOtpBeforeReset(request))
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.authService.verifyOtpBeforeReset(request))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

@@ -1,5 +1,6 @@
 package com.tpt.chat_task.config.security;
 
+import com.tpt.chat_task.infrastructure.redis.repository.CacheBlackList;
 import com.tpt.chat_task.modules.auth.jwt.JwtFilter;
 import com.tpt.chat_task.modules.auth.service.impl.CustomUserDetailsService;
 import jakarta.annotation.Nonnull;
@@ -30,6 +31,8 @@ import java.util.List;
 public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
 
+    private final CacheBlackList cacheBlackList;
+
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
     @Bean
@@ -46,7 +49,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtFilter jwtFilter() {
-        return new JwtFilter(userDetailsService);
+        return new JwtFilter(userDetailsService, cacheBlackList);
     }
 
     @Bean
