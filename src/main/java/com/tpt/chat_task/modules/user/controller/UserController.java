@@ -41,6 +41,15 @@ public class UserController {
         return ResponseEntity.ok(this.userService.getListUsers(page, paging));
     }
 
+    @GetMapping("/find")
+    public ResponseEntity<?> findUsersByEmail(
+            @RequestParam(name = "page", required = false, defaultValue = AppConstant.PAGE) Integer page,
+            @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging,
+            @RequestParam(name = "email", required = false) String email
+    ) {
+        return ResponseEntity.ok(this.userService.findUsersByEmail(email, page, paging));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(
             @PathVariable String id

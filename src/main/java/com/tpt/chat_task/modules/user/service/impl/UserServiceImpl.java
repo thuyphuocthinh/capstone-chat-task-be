@@ -193,4 +193,34 @@ public class UserServiceImpl implements UserService {
                 .status(user.getStatus().toString())
                 .build();
     }
+
+    @Override
+    public SuccessResponseWithMetadata<?> findUsersByEmail(String email, Integer page, Integer paging) throws NotFoundException {
+        Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
+        Page<User> userPage = this.userRepository.findByStatusAndEmailContainingIgnoreCase(USER_STATUS.ACTIVE, email, pageable);
+        List<User> users = userPage.getContent();
+        List<UserResponse> userResponses = users.stream().map(user ->
+                UserResponse.builder()
+                        .id(user.getId())
+                        .firstName(user.getFirstName())
+                        .email(user.getEmail())
+                        .lastName(user.getLastName())
+                        .status(user.getStatus().toString())
+                        .role(user.getRole().toString())
+                        .avatar(user.getAvatar())
+                        .build()
+        ).toList();
+
+        Metadata metadata = Metadata.builder()
+                .currentPage(userPage.getNumber() + 1)
+                .totalPages(userPage.getTotalPages())
+                .totalElements((int) userPage.getTotalElements())
+                .pageSize(userPage.getSize())
+                .build();
+
+        return SuccessResponseWithMetadata.builder()
+                .metadata(metadata)
+                .data(userResponses)
+                .build();
+    }
 }
