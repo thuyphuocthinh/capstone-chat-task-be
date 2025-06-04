@@ -118,7 +118,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    private Authentication authenticate(LoginRequest loginRequest) {
+    Authentication authenticate(LoginRequest loginRequest) {
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(loginRequest.getEmail());
         if (userDetails == null) {
             throw new BadCredentialsException(AuthError.BAD_CREDENTIALS);
