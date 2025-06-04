@@ -4,6 +4,7 @@ import com.tpt.chat_task.common.constant.AppConstant;
 import com.tpt.chat_task.common.constant.JwtConstant;
 import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.modules.user.dto.request.ChangePasswordRequest;
+import com.tpt.chat_task.modules.user.dto.request.ChangeRoleRequest;
 import com.tpt.chat_task.modules.user.dto.request.UpdateProfileRequest;
 import com.tpt.chat_task.modules.user.service.UserService;
 import jakarta.validation.Valid;
@@ -30,7 +31,7 @@ public class UserController {
         return ResponseEntity.ok(successResponse);
     }
 
-    @GetMapping("/users")
+    @GetMapping("")
     public ResponseEntity<?> getListUsers(
             @RequestParam(name = "page", required = false, defaultValue = AppConstant.PAGE) Integer page,
             @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging
@@ -38,12 +39,23 @@ public class UserController {
         return ResponseEntity.ok(this.userService.getListUsers(page, paging));
     }
 
-    @GetMapping("/users/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(
             @PathVariable String id
     ) {
         SuccessResponse successResponse = SuccessResponse.builder()
                 .data(this.userService.getUserById(id))
+                .build();
+        return ResponseEntity.ok(successResponse);
+    }
+
+    @PatchMapping("/{id}/change-role")
+    public ResponseEntity<?> getUserById(
+            @PathVariable String id,
+            @RequestBody @Valid ChangeRoleRequest request
+    ) {
+        SuccessResponse successResponse = SuccessResponse.builder()
+                .data(this.userService.changeRole(id, request))
                 .build();
         return ResponseEntity.ok(successResponse);
     }
