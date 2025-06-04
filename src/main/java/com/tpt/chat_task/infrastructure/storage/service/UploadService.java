@@ -1,4 +1,4 @@
-package com.tpt.chat_task.modules.resource.service;
+package com.tpt.chat_task.infrastructure.storage.service;
 
 import org.springframework.web.multipart.MultipartFile;
 
