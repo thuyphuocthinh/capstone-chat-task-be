@@ -47,3 +47,8 @@ jwt:
   accessTokenExpiration: 900000
   refreshTokenExpiration: 259200000
 
+cloudinary:
+  cloud-name: dy0m9udjz
+  api-key: 655763378773479
+  api-secret: 7CheewENHiovwVJtdW4ZJLBNoW8
+
