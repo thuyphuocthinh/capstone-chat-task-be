@@ -9,9 +9,11 @@ import com.tpt.chat_task.common.utils.SecurityUtils;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.dto.request.ChangePasswordRequest;
+import com.tpt.chat_task.modules.user.dto.request.ChangeRoleRequest;
 import com.tpt.chat_task.modules.user.dto.request.UpdateProfileRequest;
 import com.tpt.chat_task.modules.user.dto.response.UserResponse;
 import com.tpt.chat_task.modules.user.entity.User;
+import com.tpt.chat_task.modules.user.enums.USER_STATUS;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,7 @@ public class UserServiceImpl implements UserService {
                 .lastName(user.getLastName())
                 .role(user.getRole().toString())
                 .avatar(user.getAvatar())
+                .status(user.getStatus().toString())
                 .build();
     }
 
@@ -64,6 +67,7 @@ public class UserServiceImpl implements UserService {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .role(user.getRole().toString())
+                .status(user.getStatus().toString())
                 .avatar(user.getAvatar())
                 .build();
     }
@@ -71,14 +75,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public SuccessResponseWithMetadata<?> getListUsers(Integer page, Integer paging) throws NotFoundException {
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<User> userPage = this.userRepository.findAll(pageable);
+        Page<User> userPage = this.userRepository.findAllByStatus(USER_STATUS.ACTIVE, pageable);
         List<User> users = userPage.getContent();
         List<UserResponse> userResponses = users.stream().map(user ->
             UserResponse.builder()
-                    .id(user.getId().toString())
+                    .id(user.getId())
                     .firstName(user.getFirstName())
                     .email(user.getEmail())
                     .lastName(user.getLastName())
+                    .status(user.getStatus().toString())
                     .role(user.getRole().toString())
                     .avatar(user.getAvatar())
                     .build()
@@ -111,6 +116,7 @@ public class UserServiceImpl implements UserService {
                 .lastName(user.getLastName())
                 .role(user.getRole().toString())
                 .avatar(user.getAvatar())
+                .status(user.getStatus().toString())
                 .build();
     }
 
@@ -141,6 +147,7 @@ public class UserServiceImpl implements UserService {
                 .lastName(user.getLastName())
                 .role(user.getRole().toString())
                 .avatar(user.getAvatar())
+                .status(user.getStatus().toString())
                 .build();
     }
 
@@ -149,5 +156,21 @@ public class UserServiceImpl implements UserService {
         User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         this.userRepository.delete(user);
         return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    @Override
+    public UserResponse changeRole(String id, ChangeRoleRequest request) throws NotFoundException {
+        User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+        user.setRole(request.getRole());
+        user = this.userRepository.save(user);
+        return UserResponse.builder()
+                .id(id)
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole().toString())
+                .avatar(user.getAvatar())
+                .status(user.getStatus().toString())
+                .build();
     }
 }
