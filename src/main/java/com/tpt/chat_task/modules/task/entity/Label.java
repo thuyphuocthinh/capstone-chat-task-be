@@ -24,8 +24,8 @@ import java.util.UUID;
 public class Label {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(length = 36, updatable = false, nullable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Column(name = "title", nullable = false)
     @NotBlank(message = "Label title cannot be blank")

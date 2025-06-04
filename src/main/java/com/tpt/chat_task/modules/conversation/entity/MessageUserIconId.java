@@ -6,7 +6,7 @@ import java.util.UUID;
 
 @Embeddable
 public class MessageUserIconId {
-    private UUID messageId;
-    private UUID userId;
-    private UUID iconId;
+    private String messageId;
+    private String userId;
+    private String iconId;
 }

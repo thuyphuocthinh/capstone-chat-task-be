@@ -22,8 +22,8 @@ import java.util.UUID;
 public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(length = 36, updatable = false, nullable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @NotBlank(message = "Refresh token cannot be null")
     @Column(nullable = false, unique = true, name = "refresh_token", length = 512)

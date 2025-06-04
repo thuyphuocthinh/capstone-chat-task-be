@@ -6,6 +6,6 @@ import java.util.UUID;
 
 @Embeddable
 public class NotificationUserId {
-    private UUID notificationId;
-    private UUID userId;
+    private String notificationId;
+    private String userId;
 }

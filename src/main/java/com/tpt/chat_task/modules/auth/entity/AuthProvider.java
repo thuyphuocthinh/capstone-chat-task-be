@@ -26,8 +26,8 @@ import java.util.UUID;
 public class AuthProvider {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(nullable = false, updatable = false, unique = true)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Column(nullable = false, name = "provider_id")
     @NotBlank(message = "Provider id cannot be blank")

@@ -24,8 +24,8 @@ import java.util.UUID;
 public class MessageElement {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(length = 36, updatable = false, nullable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Column(length = 36, nullable = false, name = "parent_id")
     private String parentId;
