@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,6 +51,7 @@ public class UserController {
         return ResponseEntity.ok(successResponse);
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping("/{id}/change-role")
     public ResponseEntity<?> getUserById(
             @PathVariable String id,
@@ -93,6 +95,17 @@ public class UserController {
         String accessToken = bearerToken.substring(7);
         SuccessResponse successResponse = SuccessResponse.builder()
                 .data(this.userService.updateAvatar(accessToken, request))
+                .build();
+        return ResponseEntity.ok(successResponse);
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUserById(
+            @PathVariable String id
+    ) {
+        SuccessResponse successResponse = SuccessResponse.builder()
+                .data(this.userService.deleteUserById(id))
                 .build();
         return ResponseEntity.ok(successResponse);
     }

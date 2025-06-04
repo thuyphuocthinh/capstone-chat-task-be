@@ -1,11 +1,9 @@
 package com.tpt.chat_task.modules.user.service.impl;
 
-import com.tpt.chat_task.common.constant.ErrorConstant;
 import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
-import com.tpt.chat_task.common.utils.SecurityUtils;
 import com.tpt.chat_task.infrastructure.storage.service.UploadService;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.user.constant.UserError;
@@ -59,16 +57,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse getUserById(String id) throws NotFoundException {
-        String userId = SecurityUtils.getCurrentUserId();
-
-        if(!userId.equals(id)) {
-            throw new BadCredentialsException(ErrorConstant.NOT_ALLOWED_TO_ACCESS_RESOURCE);
-        }
-
-        User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
-
+        User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         return UserResponse.builder()
-                .id(userId)
+                .id(id)
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
@@ -130,7 +121,6 @@ public class UserServiceImpl implements UserService {
     public UserResponse changePassword(String token, ChangePasswordRequest request) throws NotFoundException, BadRequestException {
         String id = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
-
         String currentPassword = request.getCurrentPassword();
         String newPassword = request.getNewPassword();
         String confirmPassword = request.getConfirmPassword();
