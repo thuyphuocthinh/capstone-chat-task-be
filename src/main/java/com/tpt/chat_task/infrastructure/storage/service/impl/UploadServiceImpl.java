@@ -1,8 +1,8 @@
-package com.tpt.chat_task.modules.resource.service.impl;
+package com.tpt.chat_task.infrastructure.storage.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.tpt.chat_task.modules.resource.service.UploadService;
+import com.tpt.chat_task.infrastructure.storage.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
