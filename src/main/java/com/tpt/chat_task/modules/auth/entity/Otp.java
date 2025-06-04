@@ -26,8 +26,8 @@ import java.util.UUID;
 public class Otp {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(unique = true, nullable = false, updatable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Column(nullable = false, name = "email")
     @Email(message = "Email is invalid")
