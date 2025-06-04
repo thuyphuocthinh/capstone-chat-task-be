@@ -7,6 +7,6 @@ import java.util.UUID;
 
 @Embeddable
 public class WorkspaceUserId implements Serializable {
-    private UUID userId;
-    private UUID workspaceId;
+    private String userId;
+    private String workspaceId;
 }

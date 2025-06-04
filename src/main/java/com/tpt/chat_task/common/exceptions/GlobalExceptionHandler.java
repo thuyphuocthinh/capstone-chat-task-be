@@ -17,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -34,6 +35,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
                 response,
                 HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxSizeException(MaxUploadSizeExceededException ex) {
+        ErrorResponse response = ErrorResponse.builder().message(ex.getMessage()).build();
+        return new ResponseEntity<>(
+                response,
+                HttpStatus.BAD_REQUEST
         );
     }
 

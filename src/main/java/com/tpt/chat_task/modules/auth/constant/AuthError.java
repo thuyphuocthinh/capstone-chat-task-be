@@ -14,4 +14,6 @@ public class AuthError {
     public static final String EMAIL_ALREADY_EXISTS = "Email already exists";
     public static final String PASSWORD_MISMATCH = "Password mismatch";
     public static final String INVALID_OTP   = "Invalid otp";
+    public static final String GOOGLE_LOGIN_FAILED = "Google login failed";
+    public static final String INVALID_GOOGLE_STATE_DATA = "Invalid google state data";
 }

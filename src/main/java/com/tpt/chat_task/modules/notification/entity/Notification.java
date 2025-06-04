@@ -25,8 +25,8 @@ import java.util.UUID;
 public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(length = 36, updatable = false, nullable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 50)

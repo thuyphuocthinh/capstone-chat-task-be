@@ -34,8 +34,8 @@ import java.util.UUID;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(length = 36, updatable = false, nullable = false)
-    private UUID id;
+    @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
+    private String id;
 
     @Column(nullable = false, unique = true, name = "email")
     @Email(message = "Email is invalid")
