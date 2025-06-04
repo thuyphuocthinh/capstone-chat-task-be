@@ -42,6 +42,11 @@ spring:
           starttls:
             enable: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 jwt:
   secret: qQ5xB!93@kVZ&nL#7fJe$uPwRz8XtA2mDgYsTc0^HlEoMb9CUiKgN1s6WdFYrp3x
   accessTokenExpiration: 900000
@@ -51,4 +56,6 @@ cloudinary:
   cloud-name: dy0m9udjz
   api-key: 655763378773479
   api-secret: 7CheewENHiovwVJtdW4ZJLBNoW8
+
+
 

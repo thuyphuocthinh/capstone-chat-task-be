@@ -7,9 +7,11 @@ import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.common.utils.SecurityUtils;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
+import com.tpt.chat_task.modules.resource.service.UploadService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.dto.request.ChangePasswordRequest;
 import com.tpt.chat_task.modules.user.dto.request.ChangeRoleRequest;
+import com.tpt.chat_task.modules.user.dto.request.UpdateAvatarRequest;
 import com.tpt.chat_task.modules.user.dto.request.UpdateProfileRequest;
 import com.tpt.chat_task.modules.user.dto.response.UserResponse;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -25,7 +27,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +39,8 @@ public class UserServiceImpl implements UserService {
     private final JwtProvider jwtProvider;
 
     private final PasswordEncoder passwordEncoder;
+
+    private final UploadService uploadService;
 
     @Override
     public UserResponse getProfile(String token) throws NotFoundException {
@@ -162,6 +168,30 @@ public class UserServiceImpl implements UserService {
     public UserResponse changeRole(String id, ChangeRoleRequest request) throws NotFoundException {
         User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         user.setRole(request.getRole());
+        user = this.userRepository.save(user);
+        return UserResponse.builder()
+                .id(id)
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole().toString())
+                .avatar(user.getAvatar())
+                .status(user.getStatus().toString())
+                .build();
+    }
+
+    @Override
+    public UserResponse updateAvatar(String token, UpdateAvatarRequest request) throws NotFoundException {
+        String id = this.jwtProvider.getIdFromToken(token);
+        User user = this.userRepository.findById(id).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+        Map<String, Object> uploadResult = null;
+        try {
+            uploadResult = this.uploadService.uploadOneFile(request.getAvatar());
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+        String imageUrl = (String) uploadResult.getOrDefault("secure_url", "");
+        user.setAvatar(imageUrl);
         user = this.userRepository.save(user);
         return UserResponse.builder()
                 .id(id)
