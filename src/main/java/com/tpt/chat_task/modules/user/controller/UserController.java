@@ -5,6 +5,7 @@ import com.tpt.chat_task.common.constant.JwtConstant;
 import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.modules.user.dto.request.ChangePasswordRequest;
 import com.tpt.chat_task.modules.user.dto.request.ChangeRoleRequest;
+import com.tpt.chat_task.modules.user.dto.request.UpdateAvatarRequest;
 import com.tpt.chat_task.modules.user.dto.request.UpdateProfileRequest;
 import com.tpt.chat_task.modules.user.service.UserService;
 import jakarta.validation.Valid;
@@ -80,6 +81,18 @@ public class UserController {
         String accessToken = bearerToken.substring(7);
         SuccessResponse successResponse = SuccessResponse.builder()
                 .data(this.userService.changePassword(accessToken, request))
+                .build();
+        return ResponseEntity.ok(successResponse);
+    }
+
+    @PatchMapping("/profile/change-avatar")
+    public ResponseEntity<?> changeAvatar(
+            @ModelAttribute @Valid UpdateAvatarRequest request,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String accessToken = bearerToken.substring(7);
+        SuccessResponse successResponse = SuccessResponse.builder()
+                .data(this.userService.updateAvatar(accessToken, request))
                 .build();
         return ResponseEntity.ok(successResponse);
     }
