@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -17,4 +19,11 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmail(@Email(message = "Email is invalid") @Size(min = 10, max = 255, message = "Email is too long") String email);
 
     Page<User> findAllByStatus(@NotNull(message = "User status cannot be null") USER_STATUS status, Pageable pageable);
+
+    @Query("SELECT u FROM User u WHERE u.status = :status AND LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%'))")
+    Page<User> findByStatusAndEmailContainingIgnoreCase(@Param("status") USER_STATUS status,
+                                                        @Param("email") String email,
+                                                        Pageable pageable);
+
+
 }
