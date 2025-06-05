@@ -11,6 +11,7 @@ import com.tpt.chat_task.modules.user.enums.USER_ROLE;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.dto.request.AddMemberRequest;
+import com.tpt.chat_task.modules.workspace.dto.request.ChangeRoleRequest;
 import com.tpt.chat_task.modules.workspace.dto.request.CreateWorkspaceRequest;
 import com.tpt.chat_task.modules.workspace.dto.request.UpdateWorkspaceRequest;
 import com.tpt.chat_task.modules.workspace.dto.response.WorkspaceMemberResponse;
@@ -23,6 +24,7 @@ import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceUserRepository;
 import com.tpt.chat_task.modules.workspace.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -267,6 +269,25 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         WorkspaceUser workspaceUser = this.workspaceUserRepository.findById(id).orElseThrow(() -> new NotFoundException(WorkspaceError.USER_NOT_IN_WORKSPACE));
 
         this.workspaceUserRepository.delete(workspaceUser);
+
+        return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    @Override
+    public String changeRoleMemberFromWorkspace(String workspaceId, String userId, ChangeRoleRequest request) throws NotFoundException, BadRequestException {
+        this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+        this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
+
+        WorkspaceUserId id = new WorkspaceUserId(userId, workspaceId);
+        WorkspaceUser workspaceUser = this.workspaceUserRepository.findById(id).orElseThrow(() -> new NotFoundException(WorkspaceError.USER_NOT_IN_WORKSPACE));
+
+        WORKSPACE_USER_ROLE role = request.getRole();
+        if(role == WORKSPACE_USER_ROLE.HOST) {
+            throw new BadRequestException(WorkspaceError.INVALID_WORKSPACE_ROLE);
+        }
+
+        workspaceUser.setUserRole(role);
+        workspaceUserRepository.save(workspaceUser);
 
         return RESPONSE_STATUS.SUCCESS.toString();
     }
