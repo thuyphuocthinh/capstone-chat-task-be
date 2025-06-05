@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.user.repository;
 
 import com.tpt.chat_task.modules.user.entity.User;
+import com.tpt.chat_task.modules.user.enums.USER_ROLE;
 import com.tpt.chat_task.modules.user.enums.USER_STATUS;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -26,4 +27,5 @@ public interface UserRepository extends JpaRepository<User, String> {
                                                         Pageable pageable);
 
 
+    User findByRole(@NotNull(message = "User role cannot be null") USER_ROLE role);
 }
