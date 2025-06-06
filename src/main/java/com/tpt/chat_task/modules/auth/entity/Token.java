@@ -32,7 +32,7 @@ public class Token {
     @Column(nullable = false, name = "revoked")
     private boolean revoked = false;
 
-    @Column(nullable = false, length = 30, name = "ip_address")
+    @Column(nullable = false, length = 100, name = "ip_address")
     private String ipAddress;
 
     @Column(nullable = false, name = "user_agent")

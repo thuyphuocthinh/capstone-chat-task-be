@@ -48,7 +48,7 @@ public class AuthController {
         String ip = forwardedForOpt.filter(f -> !f.isEmpty()).orElse(request.getRemoteAddr());
 
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.authService.login(loginRequest, ip, userAgent))
+                .data(this.authService.login(loginRequest, userAgent, ip))
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -58,8 +58,8 @@ public class AuthController {
     public ResponseEntity<?> registerHandler(
             @RequestBody @Valid RegisterRequest request
             ) throws MessagingException, IOException {
-        SuccessResponse response = SuccessResponse.builder()
-                .data(this.authService.register(request))
+        SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
+                .message(this.authService.register(request))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
