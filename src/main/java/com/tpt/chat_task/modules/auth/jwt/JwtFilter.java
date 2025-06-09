@@ -37,6 +37,17 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final CacheBlackList cacheBlackList;
 
+    private static final List<String> EXCLUDED_PATHS = List.of(
+            "/api/v1/auth/refresh-token",
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/verify-email",
+            "/api/v1/auth/verify-otp",
+            "/api/v1/auth/reset-password",
+            "/api/v1/auth/google/verify-token"
+    );
+
     public JwtFilter(CustomUserDetailsService customUserDetailsService, CacheBlackList cacheBlackList) {
         this.customUserDetailsService = customUserDetailsService;
         this.cacheBlackList = cacheBlackList;
@@ -47,6 +58,12 @@ public class JwtFilter extends OncePerRequestFilter {
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain filterChain)
             throws ServletException, IOException {
+        String path = request.getServletPath();
+        if (EXCLUDED_PATHS.contains(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String jwt = "";
         try {
             jwt = parseJwt(request);
