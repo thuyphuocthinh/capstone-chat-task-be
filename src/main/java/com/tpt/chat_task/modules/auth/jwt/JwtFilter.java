@@ -53,13 +53,16 @@ public class JwtFilter extends OncePerRequestFilter {
         this.cacheBlackList = cacheBlackList;
     }
 
+    private boolean isExcluded(String path) {
+        return EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
+    }
+
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain filterChain)
             throws ServletException, IOException {
-        String path = request.getServletPath();
-        if (EXCLUDED_PATHS.contains(path)) {
+        if (isExcluded(request.getServletPath())) {
             filterChain.doFilter(request, response);
             return;
         }
