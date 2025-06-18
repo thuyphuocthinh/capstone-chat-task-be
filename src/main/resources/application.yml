@@ -30,6 +30,12 @@ spring:
             client-secret: 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
             redirect-uri: http://localhost:8080/api/v1/auth/google/callback
 
+  rabbitmq:
+    login:
+      queue: login_queue
+      exchange: login_exchange
+      routing-key: login_routing_key
+
   mail:
     host: smtp.gmail.com
     port: 587
