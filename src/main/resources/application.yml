@@ -57,5 +57,10 @@ cloudinary:
   api-key: 655763378773479
   api-secret: 7CheewENHiovwVJtdW4ZJLBNoW8
 
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
 
 
