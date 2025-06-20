@@ -4,6 +4,7 @@ import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.email.service.EmailService;
 import com.tpt.chat_task.infrastructure.email.utils.Template;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.infrastructure.redis.repository.CacheBlackList;
 import com.tpt.chat_task.modules.auth.constant.AuthError;
 import com.tpt.chat_task.modules.auth.dto.request.*;
@@ -25,6 +26,7 @@ import com.tpt.chat_task.modules.user.repository.UserRepository;
 import jakarta.mail.MessagingException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -62,7 +64,9 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthProviderRepository authProviderRepository;
 
-    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository, CacheBlackList cacheBlackList, AuthProviderRepository authProviderRepository) {
+    private final RabbitTemplate rabbitTemplate;
+
+    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder, JwtProvider jwtProvider, OtpService otpService, EmailService emailService, OtpRepository otpRepository, CacheBlackList cacheBlackList, AuthProviderRepository authProviderRepository, RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.customUserDetailsService = customUserDetailsService;
@@ -73,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
         this.otpRepository = otpRepository;
         this.cacheBlackList = cacheBlackList;
         this.authProviderRepository = authProviderRepository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Value("${jwt.refreshTokenExpiration}")
@@ -111,6 +116,10 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Login::AccessToken: {}", accessToken);
         log.info("Login::RefreshToken: {}", refreshToken);
+
+        String loginExchange = RabbitMQSchema.LOGIN_EXCHANGE;
+        String loginRoutingKey = RabbitMQSchema.LOGIN_ROUTING_KEY;
+        this.rabbitTemplate.convertAndSend(loginExchange, loginRoutingKey, user.getId());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)

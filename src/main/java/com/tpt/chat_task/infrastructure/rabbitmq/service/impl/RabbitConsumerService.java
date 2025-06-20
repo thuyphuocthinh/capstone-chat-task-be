@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 @Log4j2
 @RequiredArgsConstructor
 public class RabbitConsumerService {
+    private final CommonEventHandlerImpl commonEventHandler;
+
     @RabbitListener(id = "chat-task-listener", queues = {}, concurrency = "4")
     public void receiver(RabbitMQResponse response, Message message) {
         log.info("Received Message from rabbit : {}", response.toString());
@@ -23,5 +25,11 @@ public class RabbitConsumerService {
             log.error("Error message : {}", e.getMessage());
             log.error("Error trace : {}", (Object) e.getStackTrace());
         }
+    }
+
+    @RabbitListener(queues = "login_queue", concurrency = "2")
+    public void receiveLoginEvent(String userId) {
+        log.info("Received login event from rabbit : {}", userId);
+        commonEventHandler.handleLoginEvent(userId);
     }
 }

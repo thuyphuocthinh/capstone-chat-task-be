@@ -1,27 +1,38 @@
 package com.tpt.chat_task.infrastructure.rabbitmq.utils;
 
+import org.springframework.beans.factory.annotation.Value;
+
 public class RabbitMQSchema {
-    private final String GROUP_CHAT_EXCHANGE = "group_chat_exchange";
+    @Value("${spring.rabbitmq.login.exchange}")
+    public static String LOGIN_EXCHANGE;
 
-    private final String PRIVATE_CHAT_EXCHANGE = "private_chat_exchange";
+    @Value("${spring.rabbitmq.login.queue}")
+    public static String LOGIN_QUEUE;
 
-    public String getGroupChatRoutingKey(String roomId) {
+    @Value("${spring.rabbitmq.login.routing-key}")
+    public static String LOGIN_ROUTING_KEY;
+
+    public static final String GROUP_CHAT_EXCHANGE = "group_chat_exchange";
+
+    public static final String PRIVATE_CHAT_EXCHANGE = "private_chat_exchange";
+
+    public static String getGroupChatRoutingKey(String roomId) {
         return "chat.topic.group." + roomId;
     }
 
-    public String getGroupChatAllRoutingKey(String roomId) {
+    public static String getGroupChatAllRoutingKey(String roomId) {
         return "chat.topic.group." + roomId + ".all";
     }
 
-    public String getGroupChatMentionRoutingKey(String roomId, String userId) {
+    public static String getGroupChatMentionRoutingKey(String roomId, String userId) {
         return "chat.topic.group." + roomId + ".mention.user." + userId;
     }
 
-    public String getPrivateChatRoutingKey(String roomId) {
+    public static String getPrivateChatRoutingKey(String roomId) {
         return "chat.topic.private." + roomId ;
     }
 
-    public String getQueueName(String userId) {
+    public static String getQueueName(String userId) {
         return "chat.queue." + userId;
     }
 }
