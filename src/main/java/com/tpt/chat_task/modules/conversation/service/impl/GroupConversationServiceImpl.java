@@ -6,15 +6,15 @@ import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
-import com.tpt.chat_task.modules.conversation.dto.request.CreatePublicConversationRequest;
-import com.tpt.chat_task.modules.conversation.dto.request.UpdatePublicConversationRequest;
+import com.tpt.chat_task.modules.conversation.dto.request.CreateGroupConversationRequest;
+import com.tpt.chat_task.modules.conversation.dto.request.UpdateGroupConversationRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.ConversationMemberResponse;
-import com.tpt.chat_task.modules.conversation.dto.response.PublicConversationDetailResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.GroupConversationDetailResponse;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_MEMBER_ROLE;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
-import com.tpt.chat_task.modules.conversation.service.PublicConversationService;
+import com.tpt.chat_task.modules.conversation.service.GroupConversationService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.enums.USER_ROLE;
@@ -24,8 +24,10 @@ import com.tpt.chat_task.modules.workspace.dto.response.WorkspaceMemberResponse;
 import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import com.tpt.chat_task.modules.workspace.enums.WORKSPACE_USER_ROLE;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
+import com.tpt.chat_task.modules.workspace.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,12 +35,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PublicConversationServiceImpl implements PublicConversationService {
+public class GroupConversationServiceImpl implements GroupConversationService {
     private final ConversationRepository conversationRepository;
 
     private final WorkspaceRepository workspaceRepository;
@@ -46,6 +47,8 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     private final UserRepository userRepository;
 
     private final JwtProvider jwtProvider;
+
+    private final WorkspaceService workspaceService;
 
     private WorkspaceMemberResponse findHost() {
         User host = this.userRepository.findByRole(USER_ROLE.ADMIN);
@@ -64,7 +67,7 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public PublicConversationDetailResponse createNewPublicConversation(String workspaceId, CreatePublicConversationRequest request) throws NotFoundException {
+    public GroupConversationDetailResponse createNewGroupConversation(String workspaceId, CreateGroupConversationRequest request) throws NotFoundException {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
 
         User host = this.userRepository.findByRole(USER_ROLE.ADMIN);
@@ -81,11 +84,17 @@ public class PublicConversationServiceImpl implements PublicConversationService 
                 .type(CONVERSATION_TYPE.GROUP)
                 .isPinned(false)
                 .users(users)
+                .workspace(workspace)
                 .build();
 
-        conversation = this.conversationRepository.save(conversation);
+        try {
+            conversation = conversationRepository.save(conversation);
+        } catch (Exception e) {
+            log.error("Failed to save conversation: {}", e.getMessage(), e);
+            throw e;
+        }
 
-        return PublicConversationDetailResponse.builder()
+        return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
                 .type(conversation.getType().name())
@@ -94,10 +103,11 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public PublicConversationDetailResponse getPublicConversationDetail(String conversationId) throws NotFoundException {
+    public GroupConversationDetailResponse getGroupConversationDetail(String workspaceId, String conversationId) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
-        return PublicConversationDetailResponse.builder()
+        return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
                 .type(conversation.getType().name())
@@ -106,16 +116,17 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public SuccessResponseWithMetadata<?> getListPublicConversations(String token, Integer page, Integer paging) throws NotFoundException {
+    public SuccessResponseWithMetadata<?> getListGroupConversations(String workspaceId, String token, Integer page, Integer paging) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         String userId = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
 
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<Conversation> conversationPage = this.conversationRepository.findConversationsByUserIdAndType(userId, CONVERSATION_TYPE.GROUP.name(), pageable);
+        Page<Conversation> conversationPage = this.conversationRepository.findConversationsByUserIdAndType(userId, CONVERSATION_TYPE.GROUP, pageable);
         List<Conversation> conversations = conversationPage.getContent();
 
-        List<PublicConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
-            return PublicConversationDetailResponse.builder()
+        List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
@@ -138,16 +149,17 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public SuccessResponseWithMetadata<?> searchListPublicConversations(String token, String name, Integer page, Integer paging) throws NotFoundException {
+    public SuccessResponseWithMetadata<?> searchListGroupConversations(String workspaceId, String token, String name, Integer page, Integer paging) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         String userId = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
 
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<Conversation> conversationPage = this.conversationRepository.searchByUserIdAndName(userId, CONVERSATION_TYPE.GROUP.name(), CONVERSATION_TYPE.GROUP.name(),pageable);
+        Page<Conversation> conversationPage = this.conversationRepository.searchByUserIdAndName(userId, name, CONVERSATION_TYPE.GROUP, pageable);
         List<Conversation> conversations = conversationPage.getContent();
 
-        List<PublicConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
-            return PublicConversationDetailResponse.builder()
+        List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
@@ -170,13 +182,14 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public PublicConversationDetailResponse updatePublicConversation(String id, UpdatePublicConversationRequest request) throws NotFoundException {
+    public GroupConversationDetailResponse updateGroupConversation(String workspaceId, String id, UpdateGroupConversationRequest request) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
         conversation.setName(request.getName());
         this.conversationRepository.save(conversation);
 
-        return PublicConversationDetailResponse.builder()
+        return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
                 .type(conversation.getType().name())
@@ -185,23 +198,37 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public String deletePublicConversation(String id) throws NotFoundException {
+    public String deleteGroupConversation(String workspaceId, String id) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         this.conversationRepository.delete(conversation);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
     @Override
-    public String togglePinnedConversation(String id) throws NotFoundException {
+    public String togglePinnedConversation(String workspaceId, String id) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         conversation.setPinned(!conversation.isPinned());
+        this.conversationRepository.save(conversation);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
     @Override
-    public String addMemberToPublicConversation(String id, String userId) throws NotFoundException {
+    public String addMemberToGroupConversation(String workspaceId, String id, String userId) throws NotFoundException, BadRequestException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+
+        boolean checkUserExistInWorkspace = this.workspaceService.isMemberOfWorkspace(workspaceId, userId);
+
+        if(!checkUserExistInWorkspace) {
+            throw new BadRequestException(WorkspaceError.USER_NOT_IN_WORKSPACE);
+        }
+
+        if(this.conversationRepository.existsConversationByConversationIdAndUserId(id, userId)) {
+            throw new BadRequestException(ConversationError.USER_ALREADY_IN_CONVERSATION);
+        }
 
         conversation.getUsers().add(user);
         this.conversationRepository.save(conversation);
@@ -210,9 +237,20 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public String removeMemberFromPublicConversation(String id, String userId) throws NotFoundException {
+    public String removeMemberFromGroupConversation(String workspaceId, String id, String userId) throws NotFoundException, BadRequestException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+
+        boolean checkUserExistInWorkspace = this.workspaceService.isMemberOfWorkspace(workspaceId, userId);
+
+        if(!checkUserExistInWorkspace) {
+            throw new BadRequestException(WorkspaceError.USER_NOT_IN_WORKSPACE);
+        }
+
+        if(!this.conversationRepository.existsConversationByConversationIdAndUserId(id, userId)) {
+            throw new BadRequestException(ConversationError.USER_NOT_IN_CONVERSATION);
+        }
 
         conversation.getUsers().remove(user);
         this.conversationRepository.save(conversation);
@@ -221,7 +259,8 @@ public class PublicConversationServiceImpl implements PublicConversationService 
     }
 
     @Override
-    public List<ConversationMemberResponse> getConversationMembers(String conversationId) throws NotFoundException {
+    public List<ConversationMemberResponse> getConversationMembers(String workspaceId, String conversationId) throws NotFoundException {
+        Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
         List<User> users = conversation.getUsers();

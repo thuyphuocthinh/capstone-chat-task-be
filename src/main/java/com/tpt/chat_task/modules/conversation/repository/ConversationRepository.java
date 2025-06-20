@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.conversation.repository;
 
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,7 +28,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
     List<Conversation> findRoomsByUserIdAndType(@Param("userId") String userId, @Param("type") String type);
 
     @Query("SELECT c FROM Conversation c JOIN c.users u WHERE u.id = :userId AND c.type = :type")
-    Page<Conversation> findConversationsByUserIdAndType(@Param("userId") String userId, @Param("type") String type, Pageable pageable);
+    Page<Conversation> findConversationsByUserIdAndType(@Param("userId") String userId, @Param("type") CONVERSATION_TYPE type, Pageable pageable);
 
     @Query("""
         SELECT c FROM Conversation c
@@ -39,7 +40,15 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
     Page<Conversation> searchByUserIdAndName(
             @Param("userId") String userId,
             @Param("keyword") String keyword,
-            @Param("type") String type,
+            @Param("type") CONVERSATION_TYPE type,
             Pageable pageable
     );
+
+    @Query("""
+        SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
+        FROM Conversation c
+        JOIN c.users u
+        WHERE c.id = :conversationId AND u.id = :userId
+    """)
+    boolean existsConversationByConversationIdAndUserId(@Param("conversationId") String conversationId, @Param("userId") String userId);
 }

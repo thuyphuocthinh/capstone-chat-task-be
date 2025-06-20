@@ -18,4 +18,5 @@ public interface WorkspaceService {
     public String addMemberToWorkspace(String workspaceId, AddMemberRequest request) throws NotFoundException;
     public String removeMemberFromWorkspace(String workspaceId, String userId) throws NotFoundException;
     public String changeRoleMemberFromWorkspace(String workspaceId, String userId, ChangeRoleRequest request) throws NotFoundException, BadRequestException;
+    public boolean isMemberOfWorkspace(String workspaceId, String userId) throws NotFoundException;
 }

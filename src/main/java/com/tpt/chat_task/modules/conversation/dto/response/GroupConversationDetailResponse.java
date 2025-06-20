@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 @Builder
-public class PublicConversationDetailResponse {
+public class GroupConversationDetailResponse {
     private String id;
     private String name;
     private boolean isPinned;

@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class UpdatePublicConversationRequest {
+public class UpdateGroupConversationRequest {
     @NotBlank(message = "Conversation name cannot be blank")
     @Size(max = 255, message = "Conversation name max length is 255")
     @Size(min = 1, message = "Conversation name min length is 1")

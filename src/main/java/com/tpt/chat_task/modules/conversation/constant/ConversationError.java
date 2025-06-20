@@ -3,4 +3,6 @@ package com.tpt.chat_task.modules.conversation.constant;
 public class ConversationError {
     public static final String ICON_NOT_FOUND = "Icon not found";
     public static final String CONVERSATION_NOT_FOUND = "Conversation not found";
+    public static final String USER_ALREADY_IN_CONVERSATION = "User already in conversation";
+    public static final String USER_NOT_IN_CONVERSATION = "User not in conversation";
 }

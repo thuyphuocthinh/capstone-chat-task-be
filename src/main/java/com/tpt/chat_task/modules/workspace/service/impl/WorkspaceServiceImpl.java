@@ -291,4 +291,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return RESPONSE_STATUS.SUCCESS.toString();
     }
+
+    @Override
+    public boolean isMemberOfWorkspace(String workspaceId, String userId) throws NotFoundException {
+        Optional<Workspace> checkExist = this.workspaceUserRepository.findWorkspaceByWorkspaceIdAndUserId(userId, workspaceId);
+        return checkExist.isPresent();
+    }
 }
