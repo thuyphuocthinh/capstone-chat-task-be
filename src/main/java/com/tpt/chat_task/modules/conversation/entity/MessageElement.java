@@ -27,12 +27,16 @@ public class MessageElement {
     @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
     private String id;
 
-    @Column(length = 36, nullable = false, name = "parent_id")
-    private String parentId;
+     @Column(length = 36, nullable = false, name = "parent_id")
+     private String parentId;
 
     @Column(name = "indent")
     @Min(value = 0, message = "Message indent cannot be negative")
     private int indent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "style", length = 20)
+    private MESSAGE_ELEMENT_TYPE style;
 
     @Lob
     @Column(columnDefinition = "TEXT", nullable = false, name = "content")
@@ -42,7 +46,6 @@ public class MessageElement {
     @Column(name = "type", nullable = false, length = 20)
     @NotNull(message = "Message element type cannot be null")
     private MESSAGE_ELEMENT_TYPE type;
-
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp

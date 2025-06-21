@@ -14,6 +14,7 @@ import java.util.List;
 public class PrivateConversationDetailResponse {
     private String id;
     private boolean isPinned;
-    private String title;
+    private String name;
+    private String type;
     private List<ConversationMemberResponse> members;
 }
