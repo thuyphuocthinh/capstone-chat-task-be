@@ -37,11 +37,6 @@ public class Message {
     @Column(length = 36, name = "parent_id")
     private String parentId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 20)
-    @NotNull(message = "Message type cannot be null")
-    private MESSAGE_TYPE type;
-
     @Column(nullable = false, name = "is_pinned")
     private boolean isPinned = Boolean.FALSE;
 
@@ -52,13 +47,6 @@ public class Message {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    public void prePersist() {
-        if (type == null) {
-            type = MESSAGE_TYPE.TEXT;
-        }
-    }
 
     @ManyToOne
     @JoinColumn(name = "sender_id", nullable = false)

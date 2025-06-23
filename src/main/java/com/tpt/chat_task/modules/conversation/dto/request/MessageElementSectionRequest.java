@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.conversation.dto.request;
 
+import com.tpt.chat_task.common.annotation.ValidEnum;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,7 @@ import java.util.List;
 @Builder
 public class MessageElementSectionRequest {
     @NotNull(message = "Message element type cannot be null")
+    @ValidEnum(enumClass = MESSAGE_ELEMENT_TYPE.class)
     private MESSAGE_ELEMENT_TYPE type;
 
     @NotEmpty(message = "Message element section cannot be empty")

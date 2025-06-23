@@ -38,6 +38,15 @@ public class MessageElement {
     @Column(name = "style", length = 20)
     private MESSAGE_ELEMENT_TYPE style;
 
+    @Column(name = "is_bold")
+    private boolean isBold = false;
+
+    @Column(name = "is_italic")
+    private boolean isItalic = false;
+
+    @Column(name = "is_underline")
+    private boolean isUnderline = false;
+
     @Lob
     @Column(columnDefinition = "TEXT", nullable = false, name = "content")
     private String content;
