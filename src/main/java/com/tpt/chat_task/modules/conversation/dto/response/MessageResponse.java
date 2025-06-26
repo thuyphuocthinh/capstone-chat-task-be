@@ -18,7 +18,7 @@ public class MessageResponse {
     private List<MessageElementResponse> elements;
     private boolean isPinned;
     private boolean isRead;
-    // files
-    // reacts
-    // userReplyIds
+    private List<MessageResourceResponse> files;
+    private List<MessageReactResponse> reactions;
+    private List<String> userIds;
 }

@@ -1,9 +1,9 @@
 package com.tpt.chat_task.modules.conversation.entity;
 
+import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_STYLE;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,7 +13,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "message_elements")
@@ -27,8 +26,8 @@ public class MessageElement {
     @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
     private String id;
 
-     @Column(length = 36, nullable = false, name = "parent_id")
-     private String parentId;
+    @Column(length = 36, nullable = false, name = "parent_id")
+    private String parentId;
 
     @Column(name = "indent")
     @Min(value = 0, message = "Message indent cannot be negative")
@@ -36,7 +35,7 @@ public class MessageElement {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "style", length = 20)
-    private MESSAGE_ELEMENT_TYPE style;
+    private MESSAGE_ELEMENT_STYLE style;
 
     @Column(name = "is_bold")
     private boolean isBold = false;

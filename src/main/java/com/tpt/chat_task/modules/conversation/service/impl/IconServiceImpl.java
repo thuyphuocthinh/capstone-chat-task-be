@@ -6,19 +6,27 @@ import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.dto.request.CreateEmojiRequest;
 import com.tpt.chat_task.modules.conversation.dto.request.UpdateEmojiRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.EmojiDetailResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.MessageReactResponse;
 import com.tpt.chat_task.modules.conversation.entity.Icon;
+import com.tpt.chat_task.modules.conversation.entity.Message;
+import com.tpt.chat_task.modules.conversation.entity.MessageReaction;
 import com.tpt.chat_task.modules.conversation.repository.IconRepository;
+import com.tpt.chat_task.modules.conversation.repository.MessageReactionRepository;
+import com.tpt.chat_task.modules.conversation.repository.MessageRepository;
 import com.tpt.chat_task.modules.conversation.service.IconService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class IconServiceImpl implements IconService {
     private final IconRepository iconRepository;
+
+    private final MessageRepository messageRepository;
+
+    private final MessageReactionRepository messageReactionRepository;
 
     @Override
     public EmojiDetailResponse createEmoji(CreateEmojiRequest request) {
@@ -81,5 +89,38 @@ public class IconServiceImpl implements IconService {
         }
 
         return responses;
+    }
+
+    @Override
+    public List<MessageReactResponse> getReactionsByMessageId(String messageId) throws NotFoundException {
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        List<MessageReaction> messageReactions = this.messageReactionRepository.getReactionsByMessageId(messageId);
+        if(messageReactions.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> iconIds = new HashSet<>();
+        Map<String, MessageReactResponse> iconToResponse = new HashMap<>();
+
+        for (MessageReaction reaction : messageReactions) {
+            String iconId = reaction.getIcon().getId();
+            String iconName = reaction.getIcon().getName();
+            String userId = reaction.getUser().getId();
+
+            MessageReactResponse response = iconToResponse.get(iconId);
+            if (response == null) {
+                response = new MessageReactResponse();
+                response.setId(iconId);
+                response.setName(iconName);
+                iconToResponse.put(iconId, response);
+            }
+
+            response.getUserIds().add(userId);
+        }
+
+        return iconToResponse.values().stream()
+                .peek(res -> res.setCount(res.getUserIds().size()))
+                .toList();
     }
 }

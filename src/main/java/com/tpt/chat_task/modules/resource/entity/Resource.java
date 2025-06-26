@@ -33,6 +33,9 @@ public class Resource {
     @Column(name = "link", length = 512)
     private String link;
 
+    @Column(name = "name", length = 512)
+    private String name;
+
     @Enumerated(EnumType.STRING)
     @NotNull(message = "Resource type cannot be null")
     @Column(name = "type", nullable = false, length = 10)

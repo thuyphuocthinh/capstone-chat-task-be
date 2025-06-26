@@ -4,5 +4,6 @@ public enum MESSAGE_ELEMENT_TYPE {
     TEXT_SECTION,
     TEXT_LIST,
     TEXT,
-    EMOJI
+    EMOJI,
+    USER
 }
