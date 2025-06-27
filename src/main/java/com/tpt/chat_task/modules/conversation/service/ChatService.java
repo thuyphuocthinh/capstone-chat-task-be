@@ -11,11 +11,11 @@ import java.io.IOException;
 public interface ChatService {
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException;
     public MessageResponse getMessageDetail(String conversationId, String messageId) throws NotFoundException;
-    public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException;
+    public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException, IOException;
     public String deleteMessage(String conversationId, String messageId) throws NotFoundException;
     public String togglePinMessage(String conversationId, String messageId) throws NotFoundException;
     public SuccessResponseWithCenteredMetadata<?> getListOfMessages(String conversationId, Integer paging, boolean isAbove) throws NotFoundException;
-    public MessageResponse replyMessage(String messageId, MessageRequest request) throws NotFoundException;
+    public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException;
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessage(String messageId, Integer paging) throws NotFoundException;
     public String toggleReactMessage(String messageId, String iconId) throws NotFoundException;
     public SuccessResponseWithCenteredMetadata<?> getPinnedMessages(String messageId) throws NotFoundException;

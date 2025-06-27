@@ -32,4 +32,10 @@ public class RabbitConsumerService {
         log.info("Received login event from rabbit : {}", userId);
         commonEventHandler.handleLoginEvent(userId);
     }
+
+    @RabbitListener(queues = "notification_queue", concurrency = "2")
+    public void receiveNotificationEvent() {
+        log.info("Received notification event from rabbit");
+        // handling notification event here
+    }
 }

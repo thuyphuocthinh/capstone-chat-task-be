@@ -9,9 +9,7 @@ import com.tpt.chat_task.modules.conversation.dto.request.MessageElementContentR
 import com.tpt.chat_task.modules.conversation.dto.request.MessageElementRequest;
 import com.tpt.chat_task.modules.conversation.dto.request.MessageElementSectionRequest;
 import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
-import com.tpt.chat_task.modules.conversation.dto.response.MessageElementResponse;
-import com.tpt.chat_task.modules.conversation.dto.response.MessageResourceResponse;
-import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.*;
 import com.tpt.chat_task.modules.conversation.entity.*;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.*;
@@ -51,7 +49,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final IconRepository iconRepository;
 
-    private final MessageReactionRepository messageReactionRepository;;
+    private final MessageReactionRepository messageReactionRepository;
 
     @Override
     @Transactional
@@ -118,7 +116,7 @@ public class ChatServiceImpl implements ChatService {
         } else {
             messageResponse.setUserIds(this.getRepliesMessage(message.getId()).stream().map(m -> m.getUser().getId()).collect(Collectors.toList()));
         }
-        messageResponse.setElements(this.mapMessageElements(message.getMessageElements()));
+        messageResponse.setElements(this.mapMessageElementsToResponse(message.getMessageElements()));
         return messageResponse;
     }
 
@@ -243,9 +241,63 @@ public class ChatServiceImpl implements ChatService {
         return result;
     }
 
-    private List<MessageElementResponse> mapMessageElements(List<MessageElement> messageElements) {
-        // TODO: tomorrow
-        return new ArrayList<>();
+    private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
+        // GET TEXT_LIST && // GET TEXT_SECTION WITHOUT PARENT_ID
+        Map<String, MessageElementResponse> mapIdToResponse = new HashMap<>();
+        List<MessageElementResponse> result = new ArrayList<>();
+
+        for (MessageElement messageElement : messageElements) {
+            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_LIST) {
+                MessageElementResponse textListResponse = new MessageElementResponse();
+                textListResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_LIST);
+                textListResponse.setStyle(messageElement.getStyle());
+                textListResponse.setIndent(messageElement.getIndent());
+                textListResponse.setElements(new ArrayList<>());
+                mapIdToResponse.put(messageElement.getId(), textListResponse);
+                result.add(textListResponse);
+            }
+            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() == null) {
+                MessageElementResponse sectionResponse = new MessageElementResponse();
+                sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
+                sectionResponse.setStyle(messageElement.getStyle());
+                sectionResponse.setIndent(messageElement.getIndent());
+                sectionResponse.setElements(new ArrayList<>());
+                mapIdToResponse.put(messageElement.getId(), sectionResponse);
+                result.add(sectionResponse);
+            }
+        }
+
+        // GET TEXT SECTION WITH PARENT_ID
+        for(MessageElement messageElement : messageElements) {
+            if(messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() != null) {
+                String parentId = messageElement.getParentId();
+                MessageElementResponse parentElement = mapIdToResponse.get(parentId);
+                if(parentElement != null) {
+                    MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
+                    sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
+                    List<MessageElementSectionResponse> sectionResponses = parentElement.getElements();
+                    sectionResponses.add(sectionResponse);
+                    mapIdToResponse.put(messageElement.getId(), sectionResponse);
+                }
+            }
+        }
+
+        // GET TEXT WITH PARENT ID
+        for (MessageElement element : messageElements) {
+            if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null) {
+                MessageElementSectionResponse parent = (MessageElementSectionResponse) mapIdToResponse.get(element.getParentId());
+                if (parent != null) {
+                    MessageElementContentResponse text = new MessageElementContentResponse();
+                    text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
+                    text.setContent(element.getContent());
+                    text.setStyle(element.getStyle());
+                    text.setIndent(element.getIndent());
+                    parent.getElements().add(text);
+                }
+            }
+        }
+
+        return result;
     }
 
     @Override
@@ -256,8 +308,17 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException {
-        return null;
+    @Transactional
+    public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException, IOException {
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        this.messageElementRepository.deleteByMessageId(messageId);
+        List<MessageElement> messageElements = this.buildMessageElements(request.getElements());
+        message.setMessageElements(messageElements);
+        this.messageRepository.save(message);
+
+        // TODO: ban realtime
+
+        return this.mapMessageToMessageResponse(message);
     }
 
     @Override
@@ -265,6 +326,9 @@ public class ChatServiceImpl implements ChatService {
         this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
         this.messageRepository.deleteById(message.getId());
+
+        // TODO: ban realtime
+
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -282,8 +346,41 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public MessageResponse replyMessage(String messageId, MessageRequest request) throws NotFoundException {
-        return null;
+    public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+
+        String userId = this.jwtProvider.getIdFromToken(token);
+        User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+        List<MessageElementRequest> elements = request.getElements();
+        List<MultipartFile> files = request.getFiles();
+        Message replyMessage = new Message();
+
+        // 1. Neu co files => tao ham upload file => tao resource service
+        if(files != null && !files.isEmpty()) {
+            List<Resource> resources = resourceService.uploadMultipleFiles(files);
+            message.setResources(resources);
+        }
+
+        // 2. Otherwise,
+        /*
+         *  -  Viet ham build TEXT_LIST (nho validation), tra ve MessageElement
+         *  -  Viet ham build TEXT_SECTION (nho validation), tra ve MessageElement
+         * */
+        if(elements.isEmpty()){
+            throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
+        }
+
+        List<MessageElement> messageElements = this.buildMessageElements(elements);
+        message.setMessageElements(messageElements);
+
+        // 3. Thuc hien luu message
+        replyMessage.setUser(sender);
+        replyMessage.setParentId(message.getId());
+        replyMessage = this.messageRepository.save(message);
+
+        // TODO: BAN REALTIME
+
+        return this.mapMessageToMessageResponse(replyMessage);
     }
 
     @Override
@@ -300,6 +397,7 @@ public class ChatServiceImpl implements ChatService {
         if(messageReaction != null) {
             this.messageReactionRepository.delete(messageReaction);
         } else {
+            // TODO: ban realtime
             messageReaction = MessageReaction.builder()
                     .message(message)
                     .icon(icon)

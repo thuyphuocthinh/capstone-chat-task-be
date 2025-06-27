@@ -32,6 +32,15 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Value("${spring.rabbitmq.login.routing-key}")
     private String loginRoutingKey;
 
+    @Value("${spring.rabbitmq.notification.queue}")
+    private String notificationQueue;
+
+    @Value("${spring.rabbitmq.notification.exchange}")
+    private String notificationExchange;
+
+    @Value("${spring.rabbitmq.notification.routing-key}")
+    private String notificationRoutingKey;
+
     @Autowired
     private ConnectionFactory connectionFactory;
 
@@ -101,4 +110,18 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
         return BindingBuilder.bind(loginQueue).to(loginExchange).with(loginRoutingKey);
     }
 
+    @Bean
+    public DirectExchange notificationExchange() {
+        return new DirectExchange(notificationExchange);
+    }
+
+    @Bean
+    public Queue notificationQueue() {
+        return new Queue(notificationQueue, true);
+    }
+
+    @Bean
+    public Binding notificationBinding(Queue notificationQueue, DirectExchange notificationExchange) {
+        return BindingBuilder.bind(notificationQueue).to(notificationExchange).with(notificationRoutingKey);
+    }
 }
