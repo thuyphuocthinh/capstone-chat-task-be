@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.conversation.service.impl;
 
+import com.tpt.chat_task.common.constant.CenteredMetadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithCenteredMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
@@ -51,6 +52,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final MessageReactionRepository messageReactionRepository;
 
+    // TODO: APPLY THREAD
     @Override
     @Transactional
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException {
@@ -292,7 +294,7 @@ public class ChatServiceImpl implements ChatService {
                     text.setContent(element.getContent());
                     text.setStyle(element.getStyle());
                     text.setIndent(element.getIndent());
-                    parent.getElements().add(text);
+                    parent.getContentElements().add(text);
                 }
             }
         }
@@ -341,8 +343,53 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public SuccessResponseWithCenteredMetadata<?> getListOfMessages(String conversationId, Integer paging, boolean isAbove) throws NotFoundException {
-        return null;
+    public SuccessResponseWithCenteredMetadata<?> getListOfMessages(String conversationId, Integer paging) throws NotFoundException {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
+        List<Message> messageList = this.messageRepository.getListMessagesByConversationId(conversationId, paging);
+        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+
+        Integer countAbove = this.messageRepository.countAboveMessages(conversationId, messageList.get(messageList.size() - 1).getCreatedAt());
+        Integer countBelow = this.messageRepository.countBelowMessages(conversationId, messageList.get(0).getCreatedAt());
+        int countOther = countAbove + countBelow - paging;
+        CenteredMetadata centeredMetadata = new CenteredMetadata();
+        centeredMetadata.setCountOther(countOther);
+        centeredMetadata.setCountAbove(countAbove);
+        centeredMetadata.setCountBelow(countBelow);
+
+        return SuccessResponseWithCenteredMetadata.builder()
+                .data(messageResponses)
+                .status(RESPONSE_STATUS.SUCCESS.toString())
+                .metadata(centeredMetadata)
+                .build();
+    }
+
+    @Override
+    public SuccessResponseWithCenteredMetadata<?> getListOfMessagesAboveOrBelow(String conversationId, String messageId, Integer paging, boolean isAbove) throws NotFoundException {
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+
+        List<Message> messageList;
+        if(isAbove) {
+            messageList = this.messageRepository.getListMessagesByConversationIdAndBelowTime(conversationId, message.getCreatedAt(), paging);
+        } else {
+            messageList = this.messageRepository.getListMessagesByConversationIdAndBelowTime(conversationId, message.getCreatedAt(), paging);
+        }
+
+        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+
+        Integer countAbove = this.messageRepository.countAboveMessages(conversationId, message.getCreatedAt());
+        Integer countBelow = this.messageRepository.countBelowMessages(conversationId, message.getCreatedAt());
+        int countOther = countAbove + countBelow - paging;
+        CenteredMetadata centeredMetadata = new CenteredMetadata();
+        centeredMetadata.setCountOther(countOther);
+        centeredMetadata.setCountAbove(countAbove);
+        centeredMetadata.setCountBelow(countBelow);
+
+        return SuccessResponseWithCenteredMetadata.builder()
+                .data(messageResponses)
+                .status(RESPONSE_STATUS.SUCCESS.toString())
+                .metadata(centeredMetadata)
+                .build();
     }
 
     @Override
@@ -385,7 +432,55 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessage(String messageId, Integer paging) throws NotFoundException {
-        return null;
+        List<Message> messageList = this.messageRepository.getListRepliesMessageByMessageId(messageId, paging);
+        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+
+        Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
+        Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
+        int countOther = countAbove + countBelow - paging;
+        CenteredMetadata centeredMetadata = new CenteredMetadata();
+        centeredMetadata.setCountOther(countOther);
+        centeredMetadata.setCountAbove(countAbove);
+        centeredMetadata.setCountBelow(countBelow);
+
+        return SuccessResponseWithCenteredMetadata.builder()
+                .data(messageResponses)
+                .status(RESPONSE_STATUS.SUCCESS.toString())
+                .metadata(centeredMetadata)
+                .build();
+    }
+
+    @Override
+    public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(String parentId, String messageId, Integer paging, boolean isAbove) throws NotFoundException {
+        Message parentMessage = this.messageRepository.findByParentId(parentId);
+        if(parentMessage == null){
+            throw new NotFoundException(ConversationError.MESSAGE_NOT_FOUND);
+        }
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        List<Message> messageList;
+
+        if(isAbove) {
+            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(messageId, message.getCreatedAt(), paging);
+        } else {
+            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(messageId, message.getCreatedAt(), paging);
+        }
+
+        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+
+        Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
+        Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
+        int countOther = countAbove + countBelow - paging;
+        CenteredMetadata centeredMetadata = new CenteredMetadata();
+        centeredMetadata.setCountOther(countOther);
+        centeredMetadata.setCountAbove(countAbove);
+        centeredMetadata.setCountBelow(countBelow);
+
+        return SuccessResponseWithCenteredMetadata.builder()
+                .data(messageResponses)
+                .status(RESPONSE_STATUS.SUCCESS.toString())
+                .metadata(centeredMetadata)
+                .build();
     }
 
     @Override
@@ -409,7 +504,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public SuccessResponseWithCenteredMetadata<?> getPinnedMessages(String messageId) throws NotFoundException {
-        return null;
+    public List<MessageResponse> getPinnedMessagesOfConversation(String conversationId) throws NotFoundException {
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        List<Message> messageList = this.messageRepository.getListPinnedMessagesByConversationId(conversationId);
+        return messageList.stream().map(this::mapMessageToMessageResponse).toList();
     }
 }

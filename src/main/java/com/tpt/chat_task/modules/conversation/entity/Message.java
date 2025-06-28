@@ -46,7 +46,7 @@ public class Message {
     @JoinColumn(name = "sender_id", nullable = false)
     private User user;
 
-    @OneToMany(mappedBy = "message")
+    @OneToMany(mappedBy = "message", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MessageElement> messageElements = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)

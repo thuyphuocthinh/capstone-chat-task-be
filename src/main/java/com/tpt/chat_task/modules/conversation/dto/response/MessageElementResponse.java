@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_STYLE;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.util.List;
 
 @AllArgsConstructor
 @Data
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MessageElementResponse {
