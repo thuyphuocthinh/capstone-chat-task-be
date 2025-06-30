@@ -4,6 +4,11 @@ import com.tpt.chat_task.common.constant.CenteredMetadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithCenteredMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.PushNotificationAction;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.dto.request.MessageElementContentRequest;
@@ -24,11 +29,13 @@ import com.tpt.chat_task.modules.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,7 +59,12 @@ public class ChatServiceImpl implements ChatService {
 
     private final MessageReactionRepository messageReactionRepository;
 
-    // TODO: APPLY THREAD
+    private final RabbitTemplate rabbitTemplate;
+
+    private final ExecutorService executorService;
+
+    // TODO 1: ADD REALTIME - TEST CHAT, NOTIFICATION...
+    // TODO 2: APPLY THREAD - EXECUTOR THREAD POOL...
     @Override
     @Transactional
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException {
@@ -61,40 +73,60 @@ public class ChatServiceImpl implements ChatService {
         Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
         List<MultipartFile> files = request.getFiles();
-        Message message = new Message();
+        Message message = buildAndSaveMessage(request, sender, files);
+        MessageResponse response = this.mapMessageToMessageResponse(message);
+        pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.SEND_MESSAGE);
+        return response;
 
-        // 1. Neu co files => tao ham upload file => tao resource service
-        if(files != null && !files.isEmpty()) {
+    }
+
+    private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files) throws IOException {
+        Message message = new Message();
+        if (files != null && !files.isEmpty()) {
             List<Resource> resources = resourceService.uploadMultipleFiles(files);
             message.setResources(resources);
         }
 
-        // 2. Otherwise,
-        /*
-            *  -  Viet ham build TEXT_LIST (nho validation), tra ve MessageElement
-            *  -  Viet ham build TEXT_SECTION (nho validation), tra ve MessageElement
-        * */
-        if(elements.isEmpty()){
+        if (request.getElements().isEmpty()) {
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
 
-        List<MessageElement> messageElements = this.buildMessageElements(elements);
+        List<MessageElement> messageElements = this.buildMessageElements(request.getElements());
         message.setMessageElements(messageElements);
-
-        // 3. Thuc hien luu message
         message.setUser(sender);
-        message = this.messageRepository.save(message);
 
-        // 4. Viet ham map sang message response
-
-        // 5.  Viet hàm get user id => bắn thông báo vào queue
-        // 5.1 Nhắn tin vào channel thông thường thì member sẽ được nhận thông báo alert
-        // 5.2 Những member được mention sẽ nhận thêm một thông báo quả chuông
-        // 5.3 Nếu mention toàn channel thì các member sẽ nhận thông báo quả chuông
-        // TODO: Create a notification exchange
-
-        return this.mapMessageToMessageResponse(message);
+        return messageRepository.save(message);
     }
+
+
+    private void pushToQueueAsyncSendMessageAction(MessageRequest request, String conversationId, MessageResponse response, String action) {
+        executorService.submit(() -> {
+            if (checkMentionAll(request.getElements())) {
+                rabbitTemplate.convertAndSend(
+                        RabbitMQSchema.getGroupChatRoutingKey(conversationId),
+                        buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), response, action)
+                );
+            } else {
+                extractUserIds(request.getElements()).forEach(id -> {
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQSchema.getGroupChatRoutingKey(conversationId),
+                            buildRabbitRequest(RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id), response, action)
+                    );
+                });
+            }
+        });
+    }
+
+    private RabbitMQRequest buildRabbitRequest(String routingKey, MessageResponse response, String action) {
+        return RabbitMQRequest.builder()
+                .exchangeType(EXCHANGE_TYPE.TOPIC)
+                .routingKey(routingKey)
+                .payload(response)
+                .pushNotificationAction(action)
+                .pushNotificationType(PUSH_NOTIFICATION_TYPE.MESSAGE)
+                .build();
+    }
+
 
     private MessageResponse mapMessageToMessageResponse(Message message){
         MessageResponse messageResponse = new MessageResponse();
@@ -318,9 +350,10 @@ public class ChatServiceImpl implements ChatService {
         message.setMessageElements(messageElements);
         this.messageRepository.save(message);
 
-        // TODO: ban realtime
+        MessageResponse response = this.mapMessageToMessageResponse(message);
+        this.pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.UPDATE_MESSAGE);
 
-        return this.mapMessageToMessageResponse(message);
+        return response;
     }
 
     @Override
@@ -330,7 +363,10 @@ public class ChatServiceImpl implements ChatService {
         this.messageRepository.deleteById(message.getId());
 
         // TODO: ban realtime
-
+        rabbitTemplate.convertAndSend(
+                RabbitMQSchema.getGroupChatRoutingKey(conversationId),
+                buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), this.mapMessageToMessageResponse(message), PushNotificationAction.DELETE_MESSAGE)
+        );
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -395,7 +431,6 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
-
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
@@ -426,6 +461,8 @@ public class ChatServiceImpl implements ChatService {
         replyMessage = this.messageRepository.save(message);
 
         // TODO: BAN REALTIME
+        MessageResponse response = this.mapMessageToMessageResponse(message);
+        this.pushToQueueAsyncSendMessageAction(request, message.getConversation().getId(), response, PushNotificationAction.SEND_MESSAGE);
 
         return this.mapMessageToMessageResponse(replyMessage);
     }
@@ -491,8 +528,17 @@ public class ChatServiceImpl implements ChatService {
 
         if(messageReaction != null) {
             this.messageReactionRepository.delete(messageReaction);
+            rabbitTemplate.convertAndSend(
+                    RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
+                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.UNREACT_MESSAGE)
+            );
+            // push queue to remove notification for sender of the message you unreact to
         } else {
-            // TODO: ban realtime
+            rabbitTemplate.convertAndSend(
+                    RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
+                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE)
+            );
+            // push queue to save notification for sender of the message you react to
             messageReaction = MessageReaction.builder()
                     .message(message)
                     .icon(icon)
