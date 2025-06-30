@@ -35,6 +35,10 @@ spring:
       queue: login_queue
       exchange: login_exchange
       routing-key: login_routing_key
+    notification:
+      queue: notification_queue
+      exchange: notification_exchange
+      routing-key: notification_routing_key
 
   mail:
     host: smtp.gmail.com

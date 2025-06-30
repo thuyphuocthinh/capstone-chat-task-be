@@ -22,3 +22,5 @@ public interface GroupConversationService {
     public String removeMemberFromGroupConversation(String workspaceId, String id, String userId) throws NotFoundException, BadRequestException;
     public List<ConversationMemberResponse> getConversationMembers(String workspaceId, String conversationId) throws NotFoundException;
 }
+
+// TODO: ADD LATEST MESSAGE TO EACH CONVERSATION RESPONSE, ADD USER_IDS TO EACH CONVERSATION RESPONSE, COUNT_UNREAD
