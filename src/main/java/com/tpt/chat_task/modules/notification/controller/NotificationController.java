@@ -1,0 +1,36 @@
+package com.tpt.chat_task.modules.notification.controller;
+
+import com.tpt.chat_task.common.constant.AppConstant;
+import com.tpt.chat_task.common.constant.JwtConstant;
+import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
+import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
+import com.tpt.chat_task.modules.notification.service.NotificationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/notifications")
+@RequiredArgsConstructor
+public class NotificationController {
+    private final NotificationService notificationService;
+
+    private final JwtProvider jwtProvider;
+
+    @GetMapping
+    public ResponseEntity<?> getListOfNotificationsByUser(
+            @RequestParam(name = "page", required = false, defaultValue = AppConstant.PAGE) Integer page,
+            @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken,
+            @RequestParam(name = "type", required = false) NOTIFICATION_TYPE type
+            ) {
+
+        String accessToken = bearerToken.substring(7);
+        String userId = this.jwtProvider.getIdFromToken(accessToken);
+        if(type != null){
+            return ResponseEntity.ok(this.notificationService.getNotificationsByUserAndType(userId, type, page, paging));
+        } else {
+            return ResponseEntity.ok(this.notificationService.getNotificationsByUser(userId, page, paging));
+        }
+    }
+}
