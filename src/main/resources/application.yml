@@ -31,6 +31,8 @@ spring:
             redirect-uri: http://localhost:8080/api/v1/auth/google/callback
 
   rabbitmq:
+    listener:
+      id: chat-task-listener
     login:
       queue: login_queue
       exchange: login_exchange
@@ -39,6 +41,14 @@ spring:
       queue: notification_queue
       exchange: notification_exchange
       routing-key: notification_routing_key
+    conversations:
+      members:
+        add-queue: conversation_add_member_queue
+        add-exchange: conversation_add_member_exchange
+        add-routing-key: conversation_add_member_routing_key
+        delete-queue: conversation_delete_member_queue
+        delete-exchange: conversation_delete_member_exchange
+        delete-routing-key: conversation_delete_member_routing_key
 
   mail:
     host: smtp.gmail.com

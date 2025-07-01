@@ -4,6 +4,7 @@ import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.dto.request.CreatePrivateConversationRequest;
@@ -24,6 +25,7 @@ import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import com.tpt.chat_task.modules.workspace.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +46,8 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
     private final JwtProvider jwtProvider;
 
     private final WorkspaceService workspaceService;
+
+    private final RabbitTemplate rabbitTemplate;
 
     private List<ConversationMemberResponse> convertUsersListToConversationMemberResponseList(List<User> users) {
         return users.stream().map(u -> {
@@ -75,15 +79,17 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
             conversationName = conversationName.concat(user.getFirstName() + " " + user.getLastName() + " - ");
         }
         conversationName = conversationName.substring(0, conversationName.lastIndexOf(" - "));
-
         Conversation privateConversation = Conversation.builder()
                 .workspace(workspace)
                 .users(users)
                 .type(CONVERSATION_TYPE.PRIVATE)
                 .name(conversationName)
                 .build();
-
         privateConversation = conversationRepository.save(privateConversation);
+
+        String conversationAddMemberExchange = RabbitMQSchema.CONVERSATION_ADD_MEMBER_EXCHANGE;
+        String conversationAddMemberRoutingKey = RabbitMQSchema.CONVERSATION_ADD_MEMBER_ROUTING_KEY;
+        this.rabbitTemplate.convertAndSend(conversationAddMemberExchange, conversationAddMemberRoutingKey, privateConversation);
 
         return PrivateConversationDetailResponse.builder()
                 .id(privateConversation.getId())
@@ -156,10 +162,8 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
     public String togglePinPrivateConversation(String workspaceId, String conversationId) throws NotFoundException {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation privateConversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-
         privateConversation.setPinned(!privateConversation.isPinned());
         this.conversationRepository.save(privateConversation);
-
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 

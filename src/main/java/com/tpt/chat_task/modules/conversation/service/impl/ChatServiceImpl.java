@@ -63,8 +63,6 @@ public class ChatServiceImpl implements ChatService {
 
     private final ExecutorService executorService;
 
-    // TODO 1: ADD REALTIME - TEST CHAT, NOTIFICATION...
-    // TODO 2: APPLY THREAD - EXECUTOR THREAD POOL...
     @Override
     @Transactional
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException {
@@ -77,7 +75,6 @@ public class ChatServiceImpl implements ChatService {
         MessageResponse response = this.mapMessageToMessageResponse(message);
         pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.SEND_MESSAGE);
         return response;
-
     }
 
     private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files) throws IOException {
@@ -257,14 +254,7 @@ public class ChatServiceImpl implements ChatService {
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
                         String contentId = UUID.randomUUID().toString();
 
-                        MessageElement contentElement = new MessageElement();
-                        contentElement.setId(contentId);
-                        contentElement.setParentId(sectionId);
-                        contentElement.setType(contentReq.getType());
-                        contentElement.setContent(contentReq.getContent());
-                        contentElement.setBold(contentReq.isBold());
-                        contentElement.setItalic(contentReq.isItalic());
-                        contentElement.setUnderline(contentReq.isUnderline());
+                        MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
                         result.add(contentElement);
                     }
                 }
@@ -273,6 +263,18 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return result;
+    }
+
+    private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
+        MessageElement contentElement = new MessageElement();
+        contentElement.setId(contentId);
+        contentElement.setParentId(sectionId);
+        contentElement.setType(contentReq.getType());
+        contentElement.setContent(contentReq.getContent());
+        contentElement.setBold(contentReq.isBold());
+        contentElement.setItalic(contentReq.isItalic());
+        contentElement.setUnderline(contentReq.isUnderline());
+        return contentElement;
     }
 
     private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
