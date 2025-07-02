@@ -4,6 +4,9 @@ import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.dto.request.CreateGroupConversationRequest;
@@ -11,9 +14,11 @@ import com.tpt.chat_task.modules.conversation.dto.request.UpdateGroupConversatio
 import com.tpt.chat_task.modules.conversation.dto.response.ConversationMemberResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.GroupConversationDetailResponse;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_MEMBER_ROLE;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
+import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.GroupConversationService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -28,6 +33,7 @@ import com.tpt.chat_task.modules.workspace.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +55,10 @@ public class GroupConversationServiceImpl implements GroupConversationService {
     private final JwtProvider jwtProvider;
 
     private final WorkspaceService workspaceService;
+
+    private final RabbitTemplate rabbitTemplate;
+
+    private final ChatService chatService;
 
     private WorkspaceMemberResponse findHost() {
         User host = this.userRepository.findByRole(USER_ROLE.ADMIN);
@@ -107,10 +117,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
+        Message latestMessage = this.conversationRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversationId);
+
         return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
                 .type(conversation.getType().name())
+                .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                 .name(conversation.getName())
                 .build();
     }
@@ -126,10 +139,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<Conversation> conversations = conversationPage.getContent();
 
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            Message latestMessage = conversationRepository
+                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
+                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -140,7 +156,6 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                 .totalElements((int) conversationPage.getTotalElements())
                 .pageSize(conversationPage.getSize())
                 .build();
-
 
         return SuccessResponseWithMetadata.builder()
                 .metadata(metadata)
@@ -159,10 +174,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<Conversation> conversations = conversationPage.getContent();
 
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            Message latestMessage = conversationRepository
+                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
+                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -219,20 +237,27 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
-
         boolean checkUserExistInWorkspace = this.workspaceService.isMemberOfWorkspace(workspaceId, userId);
-
         if(!checkUserExistInWorkspace) {
             throw new BadRequestException(WorkspaceError.USER_NOT_IN_WORKSPACE);
         }
-
         if(this.conversationRepository.existsConversationByConversationIdAndUserId(id, userId)) {
             throw new BadRequestException(ConversationError.USER_ALREADY_IN_CONVERSATION);
         }
-
         conversation.getUsers().add(user);
         this.conversationRepository.save(conversation);
-
+        String conversationAddMemberExchange = RabbitMQSchema.CONVERSATION_ADD_MEMBER_EXCHANGE;
+        String conversationAddMemberRoutingKey = RabbitMQSchema.CONVERSATION_ADD_MEMBER_ROUTING_KEY;
+        this.rabbitTemplate.convertAndSend(
+                conversationAddMemberExchange,
+                conversationAddMemberRoutingKey,
+                RabbitMQRequest.builder()
+                        .routingKey(conversationAddMemberRoutingKey)
+                        .exchangeType(EXCHANGE_TYPE.DIRECT)
+                        .payload(conversation)
+                        .userId(userId)
+                        .build()
+        );
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -241,20 +266,27 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(id).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
-
         boolean checkUserExistInWorkspace = this.workspaceService.isMemberOfWorkspace(workspaceId, userId);
-
         if(!checkUserExistInWorkspace) {
             throw new BadRequestException(WorkspaceError.USER_NOT_IN_WORKSPACE);
         }
-
         if(!this.conversationRepository.existsConversationByConversationIdAndUserId(id, userId)) {
             throw new BadRequestException(ConversationError.USER_NOT_IN_CONVERSATION);
         }
-
         conversation.getUsers().remove(user);
         this.conversationRepository.save(conversation);
-
+        String conversationDeleteMemberExchange = RabbitMQSchema.CONVERSATION_DELETE_MEMBER_EXCHANGE;
+        String conversationDeleteMemberRoutingKey = RabbitMQSchema.CONVERSATION_DELETE_MEMBER_ROUTING_KEY;
+        this.rabbitTemplate.convertAndSend(
+                conversationDeleteMemberExchange,
+                conversationDeleteMemberRoutingKey,
+                RabbitMQRequest.builder()
+                        .routingKey(conversationDeleteMemberRoutingKey)
+                        .exchangeType(EXCHANGE_TYPE.DIRECT)
+                        .payload(conversation)
+                        .userId(userId)
+                        .build()
+        );
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -262,9 +294,7 @@ public class GroupConversationServiceImpl implements GroupConversationService {
     public List<ConversationMemberResponse> getConversationMembers(String workspaceId, String conversationId) throws NotFoundException {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-
         List<User> users = conversation.getUsers();
-
         return users.stream().map(user -> {
             return ConversationMemberResponse.builder()
                     .id(user.getId())

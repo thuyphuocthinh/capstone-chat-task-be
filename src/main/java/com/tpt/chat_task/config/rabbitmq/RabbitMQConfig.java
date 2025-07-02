@@ -41,6 +41,24 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Value("${spring.rabbitmq.notification.routing-key}")
     private String notificationRoutingKey;
 
+    @Value("${spring.rabbitmq.conversations.members.add-queue}")
+    private String conversationAddMemberQueue;
+
+    @Value("${spring.rabbitmq.conversations.members.add-exchange}")
+    private String conversationAddMemberExchange;
+
+    @Value("${spring.rabbitmq.conversations.members.add-routing-key}")
+    private String conversationAddMemberRoutingKey;
+
+    @Value("${spring.rabbitmq.conversations.members.delete-queue}")
+    private String conversationDeleteMemberQueue;
+
+    @Value("${spring.rabbitmq.conversations.members.delete-exchange}")
+    private String conversationDeleteMemberExchange;
+
+    @Value("${spring.rabbitmq.conversations.members.delete-routing-key}")
+    private String conversationDeleteMemberRoutingKey;
+
     @Autowired
     private ConnectionFactory connectionFactory;
 
@@ -123,5 +141,35 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Bean
     public Binding notificationBinding(Queue notificationQueue, DirectExchange notificationExchange) {
         return BindingBuilder.bind(notificationQueue).to(notificationExchange).with(notificationRoutingKey);
+    }
+
+    @Bean
+    public DirectExchange conversationAddMemberExchange() {
+        return new DirectExchange(conversationAddMemberExchange);
+    }
+
+    @Bean
+    public Queue conversationAddMemberQueue() {
+        return new Queue(conversationAddMemberQueue, true);
+    }
+
+    @Bean
+    public Binding conversationAddMemberBinding(Queue conversationAddMemberQueue, DirectExchange conversationAddMemberExchange) {
+        return BindingBuilder.bind(conversationAddMemberQueue).to(conversationAddMemberExchange).with(conversationAddMemberRoutingKey);
+    }
+
+    @Bean
+    public DirectExchange conversationDeleteMemberExchange() {
+        return new DirectExchange(conversationDeleteMemberExchange);
+    }
+
+    @Bean
+    public Queue conversationDeleteMemberQueue() {
+        return new Queue(conversationDeleteMemberQueue, true);
+    }
+
+    @Bean
+    public Binding conversationDeleteMemberBinding(Queue conversationDeleteMemberQueue, DirectExchange conversationDeleteMemberExchange) {
+        return BindingBuilder.bind(conversationDeleteMemberQueue).to(conversationDeleteMemberExchange).with(conversationDeleteMemberRoutingKey);
     }
 }

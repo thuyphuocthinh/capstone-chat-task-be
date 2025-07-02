@@ -22,6 +22,8 @@ import com.tpt.chat_task.modules.conversation.repository.*;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.IconService;
 import com.tpt.chat_task.modules.resource.entity.Resource;
+import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
+import com.tpt.chat_task.modules.resource.repository.ResourceRepository;
 import com.tpt.chat_task.modules.resource.service.ResourceService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -63,8 +65,8 @@ public class ChatServiceImpl implements ChatService {
 
     private final ExecutorService executorService;
 
-    // TODO 1: ADD REALTIME - TEST CHAT, NOTIFICATION...
-    // TODO 2: APPLY THREAD - EXECUTOR THREAD POOL...
+    private final ResourceRepository resourceRepository;
+
     @Override
     @Transactional
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException {
@@ -77,7 +79,6 @@ public class ChatServiceImpl implements ChatService {
         MessageResponse response = this.mapMessageToMessageResponse(message);
         pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.SEND_MESSAGE);
         return response;
-
     }
 
     private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files) throws IOException {
@@ -127,8 +128,8 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
-
-    private MessageResponse mapMessageToMessageResponse(Message message){
+    @Override
+    public MessageResponse mapMessageToMessageResponse(Message message){
         MessageResponse messageResponse = new MessageResponse();
         messageResponse.setId(message.getId());
         messageResponse.setSenderId(message.getUser().getId());
@@ -257,14 +258,7 @@ public class ChatServiceImpl implements ChatService {
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
                         String contentId = UUID.randomUUID().toString();
 
-                        MessageElement contentElement = new MessageElement();
-                        contentElement.setId(contentId);
-                        contentElement.setParentId(sectionId);
-                        contentElement.setType(contentReq.getType());
-                        contentElement.setContent(contentReq.getContent());
-                        contentElement.setBold(contentReq.isBold());
-                        contentElement.setItalic(contentReq.isItalic());
-                        contentElement.setUnderline(contentReq.isUnderline());
+                        MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
                         result.add(contentElement);
                     }
                 }
@@ -273,6 +267,18 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return result;
+    }
+
+    private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
+        MessageElement contentElement = new MessageElement();
+        contentElement.setId(contentId);
+        contentElement.setParentId(sectionId);
+        contentElement.setType(contentReq.getType());
+        contentElement.setContent(contentReq.getContent());
+        contentElement.setBold(contentReq.isBold());
+        contentElement.setItalic(contentReq.isItalic());
+        contentElement.setUnderline(contentReq.isUnderline());
+        return contentElement;
     }
 
     private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
@@ -554,5 +560,33 @@ public class ChatServiceImpl implements ChatService {
         this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         List<Message> messageList = this.messageRepository.getListPinnedMessagesByConversationId(conversationId);
         return messageList.stream().map(this::mapMessageToMessageResponse).toList();
+    }
+
+    @Override
+    public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        List<Resource> responses = this.resourceRepository.findByConversationId(conversationId);
+        return responses.stream().map(r -> {
+            return MessageResourceResponse.builder()
+                    .resourceType(r.getType())
+                    .id(r.getId())
+                    .name(r.getName())
+                    .url(r.getLink())
+                    .build();
+        }).toList();
+    }
+
+    @Override
+    public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        List<Resource> responses = this.resourceRepository.findByConversationIdAndType(conversationId, type);
+        return responses.stream().map(r -> {
+            return MessageResourceResponse.builder()
+                    .resourceType(r.getType())
+                    .id(r.getId())
+                    .name(r.getName())
+                    .url(r.getLink())
+                    .build();
+        }).toList();
     }
 }

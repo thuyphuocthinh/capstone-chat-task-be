@@ -24,7 +24,6 @@ public class NotificationController {
             @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken,
             @RequestParam(name = "type", required = false) NOTIFICATION_TYPE type
             ) {
-
         String accessToken = bearerToken.substring(7);
         String userId = this.jwtProvider.getIdFromToken(accessToken);
         if(type != null){

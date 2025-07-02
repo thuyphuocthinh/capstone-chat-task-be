@@ -9,6 +9,7 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -21,6 +22,9 @@ public class RabbitMQServiceImpl implements RabbitMQService {
     private final AmqpAdmin rabbitAdmin;
 
     private final RabbitListenerEndpointRegistry rabbitListenerEndpointRegistry;
+
+    @Value("${spring.rabbitmq.listener.id}")
+    private String listenerId;
 
     @Override
     public void addNewQueue(String queueName, String exchangeName, String routingKey) {
@@ -36,14 +40,14 @@ public class RabbitMQServiceImpl implements RabbitMQService {
         );
         rabbitAdmin.declareQueue(queue);
         rabbitAdmin.declareBinding(binding);
-        this.addQueueToListener("chat-task-listener", queueName);
+        this.addQueueToListener(listenerId, queueName);
     }
 
     @Override
     public void addQueueToListener(String listenerId, String queueName) {
         log.info("Adding queue {} to listener {}", queueName, listenerId);
         if(!checkQueueExistOnListener(listenerId, queueName)) {
-            this.getRabbitListenerContainer("chat-task-listener").addQueueNames(queueName);
+            this.getRabbitListenerContainer(listenerId).addQueueNames(queueName);
             log.info("Queue {} added to listener {}", queueName, listenerId);
         } else {
             log.info("Queue {} already exists on listener {}", queueName, listenerId);

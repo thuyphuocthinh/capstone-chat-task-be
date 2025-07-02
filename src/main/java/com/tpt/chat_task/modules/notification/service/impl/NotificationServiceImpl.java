@@ -51,6 +51,16 @@ public class NotificationServiceImpl implements NotificationService {
         notificationUserRepository.save(notificationUser);
 
         // send notification here by using websocket
+        messagingTemplate.convertAndSendToUser(
+                "/queue/notification/",
+                user.getId(),
+                NotificationDetailResponse.builder()
+                        .data(notification.getData())
+                        .title(notificationRequest.getTitle())
+                        .type(notificationRequest.getType())
+                        .id(notification.getId())
+                        .build()
+        );
     }
 
     @Override

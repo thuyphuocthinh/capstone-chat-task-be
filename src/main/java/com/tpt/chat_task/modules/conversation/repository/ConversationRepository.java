@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.conversation.repository;
 
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import org.springframework.data.domain.Page;
@@ -51,4 +52,12 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
         WHERE c.id = :conversationId AND u.id = :userId
     """)
     boolean existsConversationByConversationIdAndUserId(@Param("conversationId") String conversationId, @Param("userId") String userId);
+
+    @Query(value = """
+        SELECT * FROM messages 
+        WHERE conversation_id = :conversationId 
+        ORDER BY created_at DESC 
+        LIMIT 1
+    """, nativeQuery = true)
+    Message findFirstByConversationIdOrderByCreatedAtDesc(String conversationId);
 }
