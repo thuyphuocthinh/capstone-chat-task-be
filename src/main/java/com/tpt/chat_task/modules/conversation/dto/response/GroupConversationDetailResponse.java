@@ -14,4 +14,5 @@ public class GroupConversationDetailResponse {
     private String name;
     private boolean isPinned;
     private String type;
+    private MessageResponse message;
 }

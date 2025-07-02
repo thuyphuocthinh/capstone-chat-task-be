@@ -6,6 +6,7 @@ import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageElementResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResourceResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
+import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 
 import java.io.IOException;
@@ -27,4 +28,5 @@ public interface ChatService {
     // search message (hard)
     public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException;
     public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException;
+    public MessageResponse mapMessageToMessageResponse(Message message);
 }

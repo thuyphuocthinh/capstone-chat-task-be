@@ -14,9 +14,11 @@ import com.tpt.chat_task.modules.conversation.dto.request.UpdateGroupConversatio
 import com.tpt.chat_task.modules.conversation.dto.response.ConversationMemberResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.GroupConversationDetailResponse;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_MEMBER_ROLE;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
+import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.GroupConversationService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -55,6 +57,8 @@ public class GroupConversationServiceImpl implements GroupConversationService {
     private final WorkspaceService workspaceService;
 
     private final RabbitTemplate rabbitTemplate;
+
+    private final ChatService chatService;
 
     private WorkspaceMemberResponse findHost() {
         User host = this.userRepository.findByRole(USER_ROLE.ADMIN);
@@ -113,10 +117,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
+        Message latestMessage = this.conversationRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversationId);
+
         return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
                 .type(conversation.getType().name())
+                .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                 .name(conversation.getName())
                 .build();
     }
@@ -132,10 +139,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<Conversation> conversations = conversationPage.getContent();
 
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            Message latestMessage = conversationRepository
+                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
+                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -146,7 +156,6 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                 .totalElements((int) conversationPage.getTotalElements())
                 .pageSize(conversationPage.getSize())
                 .build();
-
 
         return SuccessResponseWithMetadata.builder()
                 .metadata(metadata)
@@ -165,10 +174,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<Conversation> conversations = conversationPage.getContent();
 
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            Message latestMessage = conversationRepository
+                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
+                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
                     .name(conversation.getName())
                     .build();
         }).toList();

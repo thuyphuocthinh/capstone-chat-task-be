@@ -128,8 +128,8 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
-
-    private MessageResponse mapMessageToMessageResponse(Message message){
+    @Override
+    public MessageResponse mapMessageToMessageResponse(Message message){
         MessageResponse messageResponse = new MessageResponse();
         messageResponse.setId(message.getId());
         messageResponse.setSenderId(message.getUser().getId());
