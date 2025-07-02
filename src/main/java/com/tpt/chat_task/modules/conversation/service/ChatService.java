@@ -4,7 +4,9 @@ import com.tpt.chat_task.common.dto.SuccessResponseWithCenteredMetadata;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageElementResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.MessageResourceResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
+import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,4 +25,6 @@ public interface ChatService {
     public String toggleReactMessage(String messageId, String iconId) throws NotFoundException;
     public List<MessageResponse> getPinnedMessagesOfConversation(String conversationId) throws NotFoundException;
     // search message (hard)
+    public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException;
+    public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException;
 }

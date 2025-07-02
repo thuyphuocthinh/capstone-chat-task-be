@@ -78,6 +78,13 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
 
     @Override
     public void handleGeneralEvent(RabbitMQRequest rabbitMQRequest) {
-
+        String userId = rabbitMQRequest.getUserId();
+        if(userId != null) {
+            this.simpMessagingTemplate.convertAndSendToUser(
+                    "/queue/notification",
+                    userId,
+                    rabbitMQRequest.getPayload()
+            );
+        }
     }
 }

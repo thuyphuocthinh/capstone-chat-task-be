@@ -7,6 +7,7 @@ import com.tpt.chat_task.common.dto.SuccessResponseWithMessage;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.conversation.dto.request.CreateGroupConversationRequest;
 import com.tpt.chat_task.modules.conversation.dto.request.UpdateGroupConversationRequest;
+import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.GroupConversationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +16,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/group-conversations")
 @RequiredArgsConstructor
 public class GroupConversationController {
     private final GroupConversationService groupConversationService;
+
+    private final ChatService chatService;
 
     @PostMapping()
     public ResponseEntity<?> createGroupConversation(@PathVariable String workspaceId, @Valid @RequestBody CreateGroupConversationRequest request) throws NotFoundException {

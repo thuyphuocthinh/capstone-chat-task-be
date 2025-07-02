@@ -22,6 +22,8 @@ import com.tpt.chat_task.modules.conversation.repository.*;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.IconService;
 import com.tpt.chat_task.modules.resource.entity.Resource;
+import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
+import com.tpt.chat_task.modules.resource.repository.ResourceRepository;
 import com.tpt.chat_task.modules.resource.service.ResourceService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -62,6 +64,8 @@ public class ChatServiceImpl implements ChatService {
     private final RabbitTemplate rabbitTemplate;
 
     private final ExecutorService executorService;
+
+    private final ResourceRepository resourceRepository;
 
     @Override
     @Transactional
@@ -556,5 +560,33 @@ public class ChatServiceImpl implements ChatService {
         this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         List<Message> messageList = this.messageRepository.getListPinnedMessagesByConversationId(conversationId);
         return messageList.stream().map(this::mapMessageToMessageResponse).toList();
+    }
+
+    @Override
+    public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        List<Resource> responses = this.resourceRepository.findByConversationId(conversationId);
+        return responses.stream().map(r -> {
+            return MessageResourceResponse.builder()
+                    .resourceType(r.getType())
+                    .id(r.getId())
+                    .name(r.getName())
+                    .url(r.getLink())
+                    .build();
+        }).toList();
+    }
+
+    @Override
+    public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        List<Resource> responses = this.resourceRepository.findByConversationIdAndType(conversationId, type);
+        return responses.stream().map(r -> {
+            return MessageResourceResponse.builder()
+                    .resourceType(r.getType())
+                    .id(r.getId())
+                    .name(r.getName())
+                    .url(r.getLink())
+                    .build();
+        }).toList();
     }
 }
