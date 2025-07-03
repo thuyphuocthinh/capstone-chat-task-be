@@ -155,7 +155,7 @@ public class PrivateChatController {
         return ResponseEntity.ok(this.chatService.getListRepliesOfMessageAboveOrBelow(parentId, messageId, paging, false));
     }
 
-    @GetMapping("/{conversationId}/pinned-messages}")
+    @GetMapping("/{conversationId}/pinned-messages")
     public ResponseEntity<?> getListPinnedMessages(
             @PathVariable String conversationId
     ) {
@@ -167,22 +167,19 @@ public class PrivateChatController {
 
     @GetMapping("/{conversationId}/resources")
     public ResponseEntity<?> getListResourcesOfConversation(
-            @PathVariable String conversationId
-    ) throws NotFoundException {
-        SuccessResponse response = SuccessResponse.builder()
-                .data(this.chatService.getListResourcesOfConversation(conversationId))
-                .build();
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @GetMapping("/{conversationId}/resources")
-    public ResponseEntity<?> getListResourcesOfConversationAndType(
             @PathVariable String conversationId,
-            @RequestParam(name = "type") RESOURCE_TYPE type
+            @RequestParam(name = "type", required = false) RESOURCE_TYPE type
     ) throws NotFoundException {
-        SuccessResponse response = SuccessResponse.builder()
-                .data(this.chatService.getListResourcesOfConversationAndType(conversationId, type))
-                .build();
+        SuccessResponse response = new SuccessResponse();
+        if(type == null) {
+            response = SuccessResponse.builder()
+                    .data(this.chatService.getListResourcesOfConversation(conversationId))
+                    .build();
+        } else {
+            SuccessResponse.builder()
+                    .data(this.chatService.getListResourcesOfConversationAndType(conversationId, type))
+                    .build();
+        }
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

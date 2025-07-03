@@ -10,4 +10,5 @@ public interface NotificationService {
     public void deleteNotification(String id) throws NotFoundException;
     public SuccessResponseWithMetadata<?> getNotificationsByUser(String userId, Integer paging, Integer page) throws NotFoundException;
     public SuccessResponseWithMetadata<?> getNotificationsByUserAndType(String userId, NOTIFICATION_TYPE type, Integer paging, Integer page) throws NotFoundException;
+    public String markReadAllNotifications(String token) throws NotFoundException;
 }

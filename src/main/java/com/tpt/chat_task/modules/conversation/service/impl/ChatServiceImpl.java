@@ -17,6 +17,7 @@ import com.tpt.chat_task.modules.conversation.dto.request.MessageElementSectionR
 import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.*;
 import com.tpt.chat_task.modules.conversation.entity.*;
+import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.*;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
@@ -99,17 +100,20 @@ public class ChatServiceImpl implements ChatService {
         return messageRepository.save(message);
     }
 
-
     private void pushToQueueAsyncSendMessageAction(MessageRequest request, String conversationId, MessageResponse response, String action) {
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        String exchangeName = conversation.getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         executorService.submit(() -> {
             if (checkMentionAll(request.getElements())) {
                 rabbitTemplate.convertAndSend(
+                        exchangeName,
                         RabbitMQSchema.getGroupChatRoutingKey(conversationId),
                         buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), response, action)
                 );
             } else {
                 extractUserIds(request.getElements()).forEach(id -> {
                     rabbitTemplate.convertAndSend(
+                            exchangeName,
                             RabbitMQSchema.getGroupChatRoutingKey(conversationId),
                             buildRabbitRequest(RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id), response, action)
                     );
@@ -355,10 +359,8 @@ public class ChatServiceImpl implements ChatService {
         List<MessageElement> messageElements = this.buildMessageElements(request.getElements());
         message.setMessageElements(messageElements);
         this.messageRepository.save(message);
-
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.UPDATE_MESSAGE);
-
         return response;
     }
 
@@ -367,11 +369,16 @@ public class ChatServiceImpl implements ChatService {
         this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
         this.messageRepository.deleteById(message.getId());
-
         // TODO: ban realtime
+        String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         rabbitTemplate.convertAndSend(
+                exchangeName,
                 RabbitMQSchema.getGroupChatRoutingKey(conversationId),
-                buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), this.mapMessageToMessageResponse(message), PushNotificationAction.DELETE_MESSAGE)
+                buildRabbitRequest(
+                        RabbitMQSchema.getGroupChatAllRoutingKey(conversationId),
+                        this.mapMessageToMessageResponse(message),
+                        PushNotificationAction.DELETE_MESSAGE
+                )
         );
         return RESPONSE_STATUS.SUCCESS.toString();
     }
@@ -531,16 +538,18 @@ public class ChatServiceImpl implements ChatService {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
         Icon icon = this.iconRepository.findById(iconId).orElseThrow(() -> new NotFoundException(ConversationError.ICON_NOT_FOUND));
         MessageReaction messageReaction = this.messageReactionRepository.getReactionByMessageIdAndIconId(message.getId(), icon.getId());
-
+        String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         if(messageReaction != null) {
             this.messageReactionRepository.delete(messageReaction);
             rabbitTemplate.convertAndSend(
+                    exchangeName,
                     RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
                     buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.UNREACT_MESSAGE)
             );
             // push queue to remove notification for sender of the message you unreact to
         } else {
             rabbitTemplate.convertAndSend(
+                    exchangeName,
                     RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
                     buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE)
             );

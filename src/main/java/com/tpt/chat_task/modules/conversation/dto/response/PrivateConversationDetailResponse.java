@@ -17,4 +17,5 @@ public class PrivateConversationDetailResponse {
     private String name;
     private String type;
     private List<ConversationMemberResponse> members;
+    private MessageResponse message;
 }

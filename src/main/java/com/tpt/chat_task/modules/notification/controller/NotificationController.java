@@ -2,6 +2,7 @@ package com.tpt.chat_task.modules.notification.controller;
 
 import com.tpt.chat_task.common.constant.AppConstant;
 import com.tpt.chat_task.common.constant.JwtConstant;
+import com.tpt.chat_task.common.dto.SuccessResponseWithMessage;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
@@ -31,5 +32,14 @@ public class NotificationController {
         } else {
             return ResponseEntity.ok(this.notificationService.getNotificationsByUser(userId, page, paging));
         }
+    }
+
+    @PatchMapping("/mark-read-all")
+    public ResponseEntity<?> markReadAllNotifications(@RequestHeader(JwtConstant.JWT_HEADER) String bearerToken) {
+        String accessToken = bearerToken.substring(7);
+        SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
+                .message(notificationService.markReadAllNotifications(accessToken))
+                .build();
+        return ResponseEntity.ok(response);
     }
 }

@@ -2,7 +2,9 @@ package com.tpt.chat_task.modules.notification.service.impl;
 
 import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
+import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.notification.constant.NotificationError;
 import com.tpt.chat_task.modules.notification.dto.NotificationDetailResponse;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
@@ -15,6 +17,7 @@ import com.tpt.chat_task.modules.notification.service.NotificationService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +37,10 @@ public class NotificationServiceImpl implements NotificationService {
     private final SimpMessagingTemplate messagingTemplate;
 
     private final UserRepository userRepository;
+
+    private final JwtProvider jwtProvider;
+
+    private final NotificationUserRepository nonNotificationUserRepository;
 
     @Override
     public void saveNotification(NotificationRequest notificationRequest) {
@@ -127,5 +134,13 @@ public class NotificationServiceImpl implements NotificationService {
                 .metadata(metadata)
                 .data(notificationDetailResponses)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public String markReadAllNotifications(String token) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        this.notificationUserRepository.markReadAllNotifications(userId);
+        return RESPONSE_STATUS.SUCCESS.toString();
     }
 }
