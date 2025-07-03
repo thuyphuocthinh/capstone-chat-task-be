@@ -12,9 +12,11 @@ import com.tpt.chat_task.modules.conversation.dto.response.ConversationMemberRes
 import com.tpt.chat_task.modules.conversation.dto.response.GroupConversationDetailResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.PrivateConversationDetailResponse;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
+import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_MEMBER_ROLE;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
+import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.PrivateConversationService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -48,6 +50,8 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
     private final WorkspaceService workspaceService;
 
     private final RabbitTemplate rabbitTemplate;
+
+    private final ChatService chatService;
 
     private List<ConversationMemberResponse> convertUsersListToConversationMemberResponseList(List<User> users) {
         return users.stream().map(u -> {
@@ -89,7 +93,11 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
 
         String conversationAddMemberExchange = RabbitMQSchema.CONVERSATION_ADD_MEMBER_EXCHANGE;
         String conversationAddMemberRoutingKey = RabbitMQSchema.CONVERSATION_ADD_MEMBER_ROUTING_KEY;
-        this.rabbitTemplate.convertAndSend(conversationAddMemberExchange, conversationAddMemberRoutingKey, privateConversation);
+        this.rabbitTemplate.convertAndSend(
+                conversationAddMemberExchange,
+                conversationAddMemberRoutingKey,
+                privateConversation.getUsers().stream().map(User::getId).toList()
+        );
 
         return PrivateConversationDetailResponse.builder()
                 .id(privateConversation.getId())
@@ -104,9 +112,7 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
     public String deletePrivateConversation(String workspaceId, String conversationId) throws NotFoundException {
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         Conversation privateConversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-
         this.conversationRepository.delete(privateConversation);
-
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -135,12 +141,15 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
         List<Conversation> conversations = conversationPage.getContent();
 
         List<PrivateConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
+            Message latestMessage = conversationRepository
+                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
             return PrivateConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .name(conversation.getName())
                     .type(CONVERSATION_TYPE.PRIVATE.toString())
                     .members(convertUsersListToConversationMemberResponseList(conversation.getUsers()))
+                    .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
                     .build();
         }).toList();
 

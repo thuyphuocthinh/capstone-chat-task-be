@@ -5,6 +5,7 @@ import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
@@ -104,6 +105,24 @@ public class GroupConversationServiceImpl implements GroupConversationService {
             throw e;
         }
 
+        String conversationAddMemberExchange = RabbitMQSchema.CONVERSATION_ADD_MEMBER_EXCHANGE;
+        String conversationAddMemberRoutingKey = RabbitMQSchema.CONVERSATION_ADD_MEMBER_ROUTING_KEY;
+        this.rabbitTemplate.convertAndSend(
+                conversationAddMemberExchange,
+                conversationAddMemberRoutingKey,
+                RabbitMQRequest.builder()
+                        .routingKey(conversationAddMemberRoutingKey)
+                        .exchangeType(EXCHANGE_TYPE.DIRECT)
+                        .payload(ConversationMemberRequest.builder()
+                                .conversationId(conversation.getId())
+                                .userId(host.getId())
+                                .type(conversation.getType())
+                                .build()
+                        )
+                        .userId(host.getId())
+                        .build()
+        );
+
         return GroupConversationDetailResponse.builder()
                 .id(conversation.getId())
                 .isPinned(conversation.isPinned())
@@ -145,7 +164,7 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
-                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
+                    .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -180,7 +199,7 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
-                    .message(this.chatService.mapMessageToMessageResponse(latestMessage))
+                    .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -254,7 +273,7 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                 RabbitMQRequest.builder()
                         .routingKey(conversationAddMemberRoutingKey)
                         .exchangeType(EXCHANGE_TYPE.DIRECT)
-                        .payload(conversation)
+                        .payload(ConversationMemberRequest.builder().conversationId(id).userId(userId).type(conversation.getType()).build())
                         .userId(userId)
                         .build()
         );
@@ -283,7 +302,7 @@ public class GroupConversationServiceImpl implements GroupConversationService {
                 RabbitMQRequest.builder()
                         .routingKey(conversationDeleteMemberRoutingKey)
                         .exchangeType(EXCHANGE_TYPE.DIRECT)
-                        .payload(conversation)
+                        .payload(ConversationMemberRequest.builder().conversationId(id).userId(userId).type(conversation.getType()).build())
                         .userId(userId)
                         .build()
         );

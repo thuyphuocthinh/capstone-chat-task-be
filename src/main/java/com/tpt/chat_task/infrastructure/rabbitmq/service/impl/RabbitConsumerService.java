@@ -2,6 +2,7 @@ package com.tpt.chat_task.infrastructure.rabbitmq.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
@@ -49,40 +50,36 @@ public class RabbitConsumerService {
         String title = rabbitMQRequest.getNotificationTitle();
         NOTIFICATION_TYPE type = rabbitMQRequest.getNotificationType();
         NotificationRequest notificationRequest = new NotificationRequest();
-        
         if(userId != null) {
             notificationRequest.setUserId(rabbitMQRequest.getUserId());
         }
-        
         if(type != null) {
             notificationRequest.setType(rabbitMQRequest.getNotificationType());
         }
-
         if(title != null) {
             notificationRequest.setTitle(rabbitMQRequest.getNotificationTitle());
         }
-
         notificationRequest.setData((JsonNode) rabbitMQRequest.getPayload());
         notificationService.saveNotification(notificationRequest);
     }
 
-    @RabbitListener(queues = "notification_queue", concurrency = "2")
+    @RabbitListener(queues = "conversation_add_member_queue", concurrency = "2")
     public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
         log.info("Received add member conversation event from rabbit");
-        Conversation payload = (Conversation) rabbitMQRequest.getPayload();
+        ConversationMemberRequest payload = (ConversationMemberRequest) rabbitMQRequest.getPayload();
         if(payload.getType() == CONVERSATION_TYPE.PRIVATE) {
-            for(User user : payload.getUsers()) {
-                this.commonEventHandler.handelAddMemberConversationEvent(user.getId(), payload.getId());
+            for(String userId : payload.getUserIds()) {
+                this.commonEventHandler.handelAddMemberConversationEvent(userId, payload.getConversationId());
             }
         } else {
-            this.commonEventHandler.handelDeleteMemberConversationEvent(rabbitMQRequest.getUserId(), payload.getId());
+            this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getUserId(), payload.getConversationId());
         }
     }
 
-    @RabbitListener(queues = "notification_queue", concurrency = "2")
+    @RabbitListener(queues = "conversation_delete_member_queue", concurrency = "2")
     public void receiveDeleteMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
         log.info("Received delete member conversation event from rabbit");
-        Conversation payload = (Conversation) rabbitMQRequest.getPayload();
-        this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getId(), rabbitMQRequest.getUserId());
+        ConversationMemberRequest payload = (ConversationMemberRequest) rabbitMQRequest.getPayload();
+        this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getUserId(), payload.getConversationId());
     }
 }
