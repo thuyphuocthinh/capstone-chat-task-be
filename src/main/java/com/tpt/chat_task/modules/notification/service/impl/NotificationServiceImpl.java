@@ -143,4 +143,14 @@ public class NotificationServiceImpl implements NotificationService {
         this.notificationUserRepository.markReadAllNotifications(userId);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
+
+    @Override
+    public NotificationDetailResponse getNotificationDetail(String id) throws NotFoundException {
+        Notification notification = this.notificationRepository.findById(id).orElseThrow(() -> new NotFoundException(NotificationError.NOTIFICATION_NOT_FOUND));
+        return NotificationDetailResponse.builder()
+                .data(notification.getData())
+                .title(notification.getTitle())
+                .type(notification.getType())
+                .build();
+    }
 }
