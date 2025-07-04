@@ -39,18 +39,18 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         List<Conversation> publicConversationList = this.conversationRepository.findRoomsByUserIdAndType(userId, CONVERSATION_TYPE.GROUP.name());
         for(Conversation conversation : publicConversationList) {
             String conversationId = conversation.getId();
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatAllRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, userId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, groupExchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, groupExchangeName, RabbitMQSchema.getGroupChatAllRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId,queueName, groupExchangeName, RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, userId));
         }
 
         // get private rooms id
         List<Conversation> privateConversationList = this.conversationRepository.findRoomsByUserIdAndType(userId, CONVERSATION_TYPE.PRIVATE.name());
         for(Conversation conversation : privateConversationList) {
             String conversationId = conversation.getId();
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatAllRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, userId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatAllRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, userId));
         }
     }
 
@@ -59,14 +59,14 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         String queueName = RabbitMQSchema.getQueueName(userId);
         if(conversation.getType() == CONVERSATION_TYPE.GROUP) {
             String groupExchangeName = RabbitMQSchema.GROUP_CHAT_EXCHANGE;
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatAllRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, groupExchangeName, RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, userId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, groupExchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, groupExchangeName, RabbitMQSchema.getGroupChatAllRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, groupExchangeName, RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, userId));
         } else {
             String privateExchangeName = RabbitMQSchema.PRIVATE_CHAT_EXCHANGE;
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatAllRoutingKey(conversationId));
-            this.rabbitMQService.addNewQueue(queueName, privateExchangeName, RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, userId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatAllRoutingKey(conversationId));
+            this.rabbitMQService.addNewQueue(listenerId, queueName, privateExchangeName, RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, userId));
         }
     }
 

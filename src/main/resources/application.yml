@@ -32,7 +32,7 @@ spring:
 
   rabbitmq:
     listener:
-      id: chat-task-listener
+      id: chat-listener
     login:
       queue: login_queue
       exchange: login_exchange

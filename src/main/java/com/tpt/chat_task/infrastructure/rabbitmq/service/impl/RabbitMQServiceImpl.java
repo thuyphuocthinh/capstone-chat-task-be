@@ -23,11 +23,8 @@ public class RabbitMQServiceImpl implements RabbitMQService {
 
     private final RabbitListenerEndpointRegistry rabbitListenerEndpointRegistry;
 
-    @Value("${spring.rabbitmq.listener.id}")
-    private String listenerId;
-
     @Override
-    public void addNewQueue(String queueName, String exchangeName, String routingKey) {
+    public void addNewQueue(String listenerId, String queueName, String exchangeName, String routingKey) {
         DirectExchange exchange = new DirectExchange(exchangeName);
         rabbitAdmin.declareExchange(exchange);
         Queue queue = new Queue(queueName, true, false, false);
