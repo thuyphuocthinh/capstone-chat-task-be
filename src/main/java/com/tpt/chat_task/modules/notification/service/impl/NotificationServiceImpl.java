@@ -4,6 +4,9 @@ import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
+import com.tpt.chat_task.infrastructure.websocket.dto.WebSocketResponse;
+import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.notification.constant.NotificationError;
 import com.tpt.chat_task.modules.notification.dto.NotificationDetailResponse;
@@ -59,13 +62,20 @@ public class NotificationServiceImpl implements NotificationService {
 
         // send notification here by using websocket
         messagingTemplate.convertAndSendToUser(
-                "/queue/notification/",
+                WebSocketSchema.getWebsocketNotificationQueue(),
                 user.getId(),
-                NotificationDetailResponse.builder()
-                        .data(notification.getData())
-                        .title(notificationRequest.getTitle())
-                        .type(notificationRequest.getType())
-                        .id(notification.getId())
+                WebSocketResponse.builder()
+                        .data(
+                                NotificationDetailResponse.builder()
+                                        .data(notification.getData())
+                                        .title(notificationRequest.getTitle())
+                                        .type(notificationRequest.getType())
+                                        .id(notification.getId())
+                                        .build()
+                        )
+                        .action("NOTIFICATION")
+                        .type(PUSH_NOTIFICATION_TYPE.NOTIFICATION)
+                        .notificationType(notification.getType())
                         .build()
         );
     }
@@ -142,5 +152,15 @@ public class NotificationServiceImpl implements NotificationService {
         String userId = this.jwtProvider.getIdFromToken(token);
         this.notificationUserRepository.markReadAllNotifications(userId);
         return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    @Override
+    public NotificationDetailResponse getNotificationDetail(String id) throws NotFoundException {
+        Notification notification = this.notificationRepository.findById(id).orElseThrow(() -> new NotFoundException(NotificationError.NOTIFICATION_NOT_FOUND));
+        return NotificationDetailResponse.builder()
+                .data(notification.getData())
+                .title(notification.getTitle())
+                .type(notification.getType())
+                .build();
     }
 }

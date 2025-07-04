@@ -2,7 +2,9 @@ package com.tpt.chat_task.modules.notification.controller;
 
 import com.tpt.chat_task.common.constant.AppConstant;
 import com.tpt.chat_task.common.constant.JwtConstant;
+import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMessage;
+import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
@@ -32,6 +34,14 @@ public class NotificationController {
         } else {
             return ResponseEntity.ok(this.notificationService.getNotificationsByUser(userId, page, paging));
         }
+    }
+
+    @GetMapping("/{notificationId}")
+    public ResponseEntity<?> getNotificationById(@PathVariable("notificationId") String notificationId) throws NotFoundException {
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.notificationService.getNotificationDetail(notificationId))
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/mark-read-all")
