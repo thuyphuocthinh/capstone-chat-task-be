@@ -4,6 +4,7 @@ import com.tpt.chat_task.common.constant.AppConstant;
 import com.tpt.chat_task.common.constant.JwtConstant;
 import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.modules.unread.service.UnreadService;
 import com.tpt.chat_task.modules.workspace.dto.request.AddMemberRequest;
 import com.tpt.chat_task.modules.workspace.dto.request.ChangeRoleRequest;
 import com.tpt.chat_task.modules.workspace.dto.request.CreateWorkspaceRequest;
@@ -22,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/workspaces")
 public class WorkspaceController {
     private final WorkspaceService workspaceService;
+
+    private final UnreadService unreadService;
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping
@@ -95,6 +98,54 @@ public class WorkspaceController {
     public ResponseEntity<?> changeRole(@PathVariable String workspaceId, @PathVariable String memberId, @RequestBody @Valid ChangeRoleRequest request) throws NotFoundException, BadRequestException {
         SuccessResponse response = SuccessResponse.builder()
                 .data(workspaceService.changeRoleMemberFromWorkspace(workspaceId, memberId, request))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{workspaceId}/conversations/count_unread")
+    public ResponseEntity<?> countUnreadPublicConversations(
+            @PathVariable String workspaceId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String token = bearerToken.substring(7);
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.unreadService.countUnreadPublicConversations(workspaceId, token))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{workspaceId}/private-conversations/count_unread")
+    public ResponseEntity<?> countUnreadPrivateConversations(
+            @PathVariable String workspaceId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String token = bearerToken.substring(7);
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.unreadService.countUnreadPrivateConversations(workspaceId, token))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{workspaceId}/notifications/count_unread")
+    public ResponseEntity<?> countUnreadNotifications(
+            @PathVariable String workspaceId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String token = bearerToken.substring(7);
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.unreadService.countUnreadNotifications(workspaceId, token))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{workspaceId}/tasks/comments/count_unread")
+    public ResponseEntity<?> countUnreadTaskComments(
+            @PathVariable String workspaceId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String token = bearerToken.substring(7);
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.unreadService.countUnreadTaskComments(workspaceId, token))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
