@@ -1,11 +1,10 @@
 package com.tpt.chat_task.modules.conversation.repository;
 
 import com.tpt.chat_task.modules.conversation.entity.Message;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -119,4 +118,17 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     Integer countBelowMessagesReplies(String messageId, LocalDateTime time);
 
     Message findByParentId(String parentId);
+
+    @Query(value = """
+        SELECT me.*
+        FROM message_elements me
+        JOIN messages m ON me.message_id = m.id
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE c.id = :conversationId
+        AND to_tsvector('simple', me.content) @@ plainto_tsquery('simple', :keyword)
+    """, nativeQuery = true)
+    List<Message> searchMessageElementsByConversationIdAndKeyword(
+            @Param("conversationId") String conversationId,
+            @Param("keyword") String keyword
+    );
 }

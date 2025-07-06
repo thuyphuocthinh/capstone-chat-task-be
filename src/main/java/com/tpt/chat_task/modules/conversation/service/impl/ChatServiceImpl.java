@@ -168,6 +168,12 @@ public class ChatServiceImpl implements ChatService {
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
+    @Override
+    public List<MessageResponse> searchMessagesByConversationAndKeyword(String conversationId, String keyword) throws NotFoundException {
+        List<Message> messages = this.messageRepository.searchMessageElementsByConversationIdAndKeyword(conversationId, keyword);
+        return messages.stream().map(this::mapMessageToMessageResponse).toList();
+    }
+
     private List<Message> getRepliesMessage(String messageId){
         this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         return this.messageRepository.getRepliesByMessageId(messageId);

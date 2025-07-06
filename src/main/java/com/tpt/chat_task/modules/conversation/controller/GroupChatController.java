@@ -123,6 +123,17 @@ public class GroupChatController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @GetMapping("/{conversationId}/search")
+    public ResponseEntity<?> searchMessagesByConversationIdAndKeyword(
+            @PathVariable String conversationId,
+            @RequestParam(name = "keyword", required = false, defaultValue = "") String keyword
+    ) {
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.chatService.markReadMessagesByConversation(conversationId, keyword))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
     @GetMapping("/{conversationId}/messages/{messageId}/above")
     public ResponseEntity<?> getListMessagesByConversationIdAbove(
             @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging,
