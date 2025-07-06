@@ -68,6 +68,8 @@ public class ChatServiceImpl implements ChatService {
 
     private final ResourceRepository resourceRepository;
 
+    private final MessageSeenRepository messageSeenRepository;
+
     @Override
     @Transactional
     public MessageResponse addNewMessage(String token, String conversationId, MessageRequest request) throws NotFoundException, IOException {
@@ -157,6 +159,13 @@ public class ChatServiceImpl implements ChatService {
         }
         messageResponse.setElements(this.mapMessageElementsToResponse(message.getMessageElements()));
         return messageResponse;
+    }
+
+    @Override
+    public String markReadMessagesByConversation(String token, String conversationId) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        this.messageSeenRepository.markReadMessages(conversationId, userId);
+        return RESPONSE_STATUS.SUCCESS.toString();
     }
 
     private List<Message> getRepliesMessage(String messageId){

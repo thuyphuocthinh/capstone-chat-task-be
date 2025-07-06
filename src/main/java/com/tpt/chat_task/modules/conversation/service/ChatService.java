@@ -29,4 +29,5 @@ public interface ChatService {
     public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException;
     public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException;
     public MessageResponse mapMessageToMessageResponse(Message message);
+    public String markReadMessagesByConversation(String token, String conversationI) throws NotFoundException;
 }

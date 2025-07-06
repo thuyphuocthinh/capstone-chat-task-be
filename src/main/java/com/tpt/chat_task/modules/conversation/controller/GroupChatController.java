@@ -111,6 +111,18 @@ public class GroupChatController {
         return ResponseEntity.ok(this.chatService.getListOfMessages(conversationId, paging));
     }
 
+    @PostMapping("/{conversationId}/mark-read")
+    public ResponseEntity<?> markReadMessage(
+            @PathVariable String conversationId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String accessToken = bearerToken.substring(7);
+        SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
+                .message(this.chatService.markReadMessagesByConversation(accessToken, conversationId))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
     @GetMapping("/{conversationId}/messages/{messageId}/above")
     public ResponseEntity<?> getListMessagesByConversationIdAbove(
             @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging,
