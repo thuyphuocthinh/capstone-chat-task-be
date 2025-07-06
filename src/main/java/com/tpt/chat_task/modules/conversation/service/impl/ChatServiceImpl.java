@@ -32,7 +32,6 @@ import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
-import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
