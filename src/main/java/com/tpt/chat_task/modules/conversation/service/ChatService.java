@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.conversation.service;
 
 import com.tpt.chat_task.common.dto.SuccessResponseWithCenteredMetadata;
+import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageElementResponse;
@@ -30,4 +31,5 @@ public interface ChatService {
     public MessageResponse mapMessageToMessageResponse(Message message);
     public String markReadMessagesByConversation(String token, String conversationI) throws NotFoundException;
     public List<MessageResponse> searchMessagesByConversationAndKeyword(String conversationId, String keyword) throws NotFoundException;
+    public SuccessResponseWithMetadata<?> getListThreadsOfWorkspace(String token, String workspaceId, Integer paging, Integer page) throws NotFoundException;
 }
