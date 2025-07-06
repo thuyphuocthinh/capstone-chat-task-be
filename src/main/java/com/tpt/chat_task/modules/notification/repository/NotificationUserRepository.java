@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -29,6 +28,14 @@ public interface NotificationUserRepository extends JpaRepository<NotificationUs
         WHERE nu.user.id = :userId
     """)
     void markReadAllNotifications(@Param("userId") String userId);
+
+    @Modifying
+    @Query(value = """
+        UPDATE NotificationUser nu
+        SET nu.is_read = true
+        WHERE nu.user_id = :userId AND nu.notification_id = :notificationId
+    """, nativeQuery = true)
+    void markReadNotification(@Param("userId") String userId, @Param("notificationId") String notificationId);
 
     @Query(value = """
         SELECT COUNT(*)

@@ -155,11 +155,10 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public NotificationDetailResponse getNotificationDetail(String id) throws NotFoundException {
+    public NotificationDetailResponse getNotificationDetail(String token, String id) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
         Notification notification = this.notificationRepository.findById(id).orElseThrow(() -> new NotFoundException(NotificationError.NOTIFICATION_NOT_FOUND));
-
-
-
+        this.notificationUserRepository.markReadNotification(userId, notification.getId());
         return NotificationDetailResponse.builder()
                 .data(notification.getData())
                 .title(notification.getTitle())

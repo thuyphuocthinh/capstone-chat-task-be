@@ -37,9 +37,13 @@ public class NotificationController {
     }
 
     @GetMapping("/{notificationId}")
-    public ResponseEntity<?> getNotificationById(@PathVariable("notificationId") String notificationId) throws NotFoundException {
+    public ResponseEntity<?> getNotificationById(
+            @PathVariable("notificationId") String notificationId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) throws NotFoundException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.notificationService.getNotificationDetail(notificationId))
+                .data(this.notificationService.getNotificationDetail(accessToken, notificationId))
                 .build();
         return ResponseEntity.ok(response);
     }
