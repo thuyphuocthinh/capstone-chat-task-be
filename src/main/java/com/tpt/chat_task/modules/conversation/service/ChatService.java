@@ -25,8 +25,9 @@ public interface ChatService {
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(String parentId, String messageId, Integer paging, boolean isAbove) throws NotFoundException;
     public String toggleReactMessage(String messageId, String iconId) throws NotFoundException;
     public List<MessageResponse> getPinnedMessagesOfConversation(String conversationId) throws NotFoundException;
-    // search message (hard)
     public List<MessageResourceResponse> getListResourcesOfConversation(String conversationId) throws NotFoundException;
     public List<MessageResourceResponse> getListResourcesOfConversationAndType(String conversationId, RESOURCE_TYPE type) throws NotFoundException;
     public MessageResponse mapMessageToMessageResponse(Message message);
+    public String markReadMessagesByConversation(String token, String conversationI) throws NotFoundException;
+    public List<MessageResponse> searchMessagesByConversationAndKeyword(String conversationId, String keyword) throws NotFoundException;
 }

@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -110,6 +109,29 @@ public class GroupChatController {
             @PathVariable String conversationId
     ) {
         return ResponseEntity.ok(this.chatService.getListOfMessages(conversationId, paging));
+    }
+
+    @PostMapping("/{conversationId}/mark-read")
+    public ResponseEntity<?> markReadMessage(
+            @PathVariable String conversationId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) {
+        String accessToken = bearerToken.substring(7);
+        SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
+                .message(this.chatService.markReadMessagesByConversation(accessToken, conversationId))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{conversationId}/search")
+    public ResponseEntity<?> searchMessagesByConversationIdAndKeyword(
+            @PathVariable String conversationId,
+            @RequestParam(name = "keyword", required = false, defaultValue = "") String keyword
+    ) {
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.chatService.markReadMessagesByConversation(conversationId, keyword))
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/{conversationId}/messages/{messageId}/above")
