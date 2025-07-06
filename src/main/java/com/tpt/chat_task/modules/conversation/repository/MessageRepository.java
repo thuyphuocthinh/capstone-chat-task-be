@@ -1,6 +1,8 @@
 package com.tpt.chat_task.modules.conversation.repository;
 
 import com.tpt.chat_task.modules.conversation.entity.Message;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -131,4 +133,34 @@ public interface MessageRepository extends JpaRepository<Message, String> {
             @Param("conversationId") String conversationId,
             @Param("keyword") String keyword
     );
+
+    @Query(value = """
+        SELECT DISTINCT m.*
+        FROM messages m
+        JOIN message_elements me ON me.message_id = m.id
+        WHERE 
+            (m.is_thread_root = true OR m.parent_id IN (
+                SELECT id FROM messages WHERE is_thread_root = true
+            ))
+          AND (
+            m.user_id = :userId
+            OR me.content = :userId
+          )
+        ORDER BY m.conversation_id, m.created_at
+        """,
+                countQuery = """
+        SELECT COUNT(DISTINCT m.id)
+        FROM messages m
+        JOIN message_elements me ON me.message_id = m.id
+        WHERE 
+            (m.is_thread_root = true OR m.parent_id IN (
+                SELECT id FROM messages WHERE is_thread_root = true
+            ))
+          AND (
+            m.user_id = :userId
+            OR me.content = :userId
+          )
+        """, nativeQuery = true)
+    Page<Message> findAllThreadMessages(@Param("userId") String userId, Pageable pageable);
+
 }

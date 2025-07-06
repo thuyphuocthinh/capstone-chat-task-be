@@ -1,7 +1,9 @@
 package com.tpt.chat_task.modules.conversation.service.impl;
 
 import com.tpt.chat_task.common.constant.CenteredMetadata;
+import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithCenteredMetadata;
+import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
@@ -29,10 +31,16 @@ import com.tpt.chat_task.modules.resource.service.ResourceService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
+import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
+import com.tpt.chat_task.modules.workspace.entity.Workspace;
+import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -69,6 +77,8 @@ public class ChatServiceImpl implements ChatService {
     private final ResourceRepository resourceRepository;
 
     private final MessageSeenRepository messageSeenRepository;
+
+    private final WorkspaceRepository workspaceRepository;
 
     @Override
     @Transactional
@@ -172,6 +182,38 @@ public class ChatServiceImpl implements ChatService {
     public List<MessageResponse> searchMessagesByConversationAndKeyword(String conversationId, String keyword) throws NotFoundException {
         List<Message> messages = this.messageRepository.searchMessageElementsByConversationIdAndKeyword(conversationId, keyword);
         return messages.stream().map(this::mapMessageToMessageResponse).toList();
+    }
+
+    @Override
+    public SuccessResponseWithMetadata<?> getListThreadsOfWorkspace(String token, String workspaceId, Integer paging, Integer page) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
+
+        Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
+        Page<Message> threadsPage = this.messageRepository.findAllThreadMessages(userId, pageable);
+        List<Message> allThreadMessages = threadsPage.getContent();
+        Map<String, List<Message>> threads = allThreadMessages.stream()
+                .collect(Collectors.groupingBy(msg -> msg.getParentId() == null ? msg.getId() : msg.getParentId()));
+
+        List<MessageResponse> messageResponses = new ArrayList<>();
+        for (Map.Entry<String, List<Message>> entry : threads.entrySet()) {
+            List<Message> messagesInThread = entry.getValue();
+            for(Message message : messagesInThread) {
+                messageResponses.add(this.mapMessageToMessageResponse(message));
+            }
+        }
+
+        Metadata metadata = Metadata.builder()
+                .currentPage(threadsPage.getNumber() + 1)
+                .totalPages(threadsPage.getTotalPages())
+                .totalElements((int) threadsPage.getTotalElements())
+                .pageSize(threadsPage.getSize())
+                .build();
+
+        return SuccessResponseWithMetadata.builder()
+                .metadata(metadata)
+                .data(messageResponses)
+                .build();
     }
 
     private List<Message> getRepliesMessage(String messageId){
@@ -465,17 +507,11 @@ public class ChatServiceImpl implements ChatService {
         List<MultipartFile> files = request.getFiles();
         Message replyMessage = new Message();
 
-        // 1. Neu co files => tao ham upload file => tao resource service
         if(files != null && !files.isEmpty()) {
             List<Resource> resources = resourceService.uploadMultipleFiles(files);
             message.setResources(resources);
         }
 
-        // 2. Otherwise,
-        /*
-         *  -  Viet ham build TEXT_LIST (nho validation), tra ve MessageElement
-         *  -  Viet ham build TEXT_SECTION (nho validation), tra ve MessageElement
-         * */
         if(elements.isEmpty()){
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
@@ -483,12 +519,14 @@ public class ChatServiceImpl implements ChatService {
         List<MessageElement> messageElements = this.buildMessageElements(elements);
         message.setMessageElements(messageElements);
 
-        // 3. Thuc hien luu message
         replyMessage.setUser(sender);
         replyMessage.setParentId(message.getId());
+        if(!message.isThreadRoot()) {
+            message.setThreadRoot(true);
+            this.messageRepository.save(message);
+        }
         replyMessage = this.messageRepository.save(message);
 
-        // TODO: BAN REALTIME
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, message.getConversation().getId(), response, PushNotificationAction.SEND_MESSAGE);
 
