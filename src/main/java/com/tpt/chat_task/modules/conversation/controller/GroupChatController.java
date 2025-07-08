@@ -82,10 +82,12 @@ public class GroupChatController {
     @PostMapping("/messages/{messageId}/icons/{iconId}")
     public ResponseEntity<?> toggleReactMessage(
             @PathVariable String messageId,
-            @PathVariable String iconId
+            @PathVariable String iconId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
+        String accessToken = bearerToken.substring(7);
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
-                .message(this.chatService.toggleReactMessage(messageId, iconId))
+                .message(this.chatService.toggleReactMessage(accessToken, messageId, iconId))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

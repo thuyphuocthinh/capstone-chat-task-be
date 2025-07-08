@@ -467,17 +467,17 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException, IOException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
-        this.messageElementRepository.deleteByMessageId(messageId);
+        Message message = this.messageRepository.findById(messageId)
+                .orElseThrow(() -> new NotFoundException(messageId));
         List<MessageElement> messageElements = this.buildMessageElements(request.getElements(), message);
-        message.setMessageElements(messageElements);
+        message.getMessageElements().clear();             // Hibernate sẽ xóa cũ
+        message.getMessageElements().addAll(messageElements); // Thêm mới
         this.messageRepository.save(message);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.UPDATE_MESSAGE);
         return response;
     }
 
-    // TODO: tomorrow
     @Transactional
     @Override
     public String deleteMessage(String conversationId, String messageId) throws NotFoundException {
@@ -654,7 +654,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public String toggleReactMessage(String messageId, String iconId) throws NotFoundException {
+    public String toggleReactMessage(String token, String messageId, String iconId) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         Icon icon = this.iconRepository.findById(iconId).orElseThrow(() -> new NotFoundException(ConversationError.ICON_NOT_FOUND));
         MessageReaction messageReaction = this.messageReactionRepository.getReactionByMessageIdAndIconId(message.getId(), icon.getId());
@@ -674,9 +676,15 @@ public class ChatServiceImpl implements ChatService {
                     buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE)
             );
             // push queue to save notification for sender of the message you react to
+            MessageUserIconId id = new MessageUserIconId();
+            id.setMessageId(message.getId());
+            id.setUserId(user.getId());
+            id.setIconId(icon.getId());
             messageReaction = MessageReaction.builder()
+                    .id(id)
                     .message(message)
                     .icon(icon)
+                    .user(user)
                     .build();
             this.messageReactionRepository.save(messageReaction);
         }
