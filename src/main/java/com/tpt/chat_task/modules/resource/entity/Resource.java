@@ -49,9 +49,7 @@ public class Resource {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ManyToMany(mappedBy = "resources")
-    private List<Message> messages = new ArrayList<>();
-
-    @ManyToMany(mappedBy = "resources")
-    private List<Task> tasks = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "message_id", nullable = false)
+    private Message message;
 }

@@ -149,36 +149,49 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public MessageResponse mapMessageToMessageResponse(Message message){
-        MessageResponse messageResponse = new MessageResponse();
-        messageResponse.setId(message.getId());
-        messageResponse.setSenderId(message.getUser().getId());
-        messageResponse.setPinned(message.isPinned());
-        messageResponse.setConversationId(message.getConversation().getId());
-        if (message.getResources() != null && !message.getResources().isEmpty()) {
-            messageResponse.setFiles(
-                    message.getResources().stream().map(resource ->
-                            MessageResourceResponse.builder()
-                                    .id(resource.getId())
-                                    .url(resource.getLink())
-                                    .name(resource.getName())
-                                    .resourceType(resource.getType())
-                                    .createdAt(resource.getCreatedAt())
-                                    .build()
-                    ).toList()
+    public MessageResponse mapMessageToMessageResponse(Message message) {
+        MessageResponse response = new MessageResponse();
+        response.setId(message.getId());
+        response.setSenderId(message.getUser().getId());
+        response.setPinned(message.isPinned());
+        response.setConversationId(message.getConversation().getId());
+
+        // Set files
+        List<Resource> resources = message.getResources();
+        response.setFiles(resources != null && !resources.isEmpty()
+                        ? resources.stream().map(resource -> MessageResourceResponse.builder()
+                        .id(resource.getId())
+                        .url(resource.getLink())
+                        .name(resource.getName())
+                        .resourceType(resource.getType())
+                        .createdAt(resource.getCreatedAt())
+                        .build()
+                ).toList()
+                        : Collections.emptyList()
+        );
+
+        // Set reactions
+        List<MessageReactResponse> reactions = iconService.getReactionsByMessageId(message.getId());
+        response.setReactions(reactions != null ? reactions : Collections.emptyList());
+
+        // Set userIds (for replies)
+        if (message.getParentId() == null) {
+            response.setUserIds(Collections.emptyList());
+        } else {
+            response.setUserIds(
+                    this.getRepliesMessage(message.getId()).stream()
+                            .map(reply -> reply.getUser().getId())
+                            .toList()
             );
         }
-        Optional.ofNullable(iconService.getReactionsByMessageId(message.getId()))
-                .filter(reactions -> !reactions.isEmpty())
-                .ifPresent(messageResponse::setReactions);
-        // messageResponse.setUserReplyIds (if exist)
-        if(message.getParentId() == null){
-            messageResponse.setUserIds(new ArrayList<>());
-        } else {
-            messageResponse.setUserIds(this.getRepliesMessage(message.getId()).stream().map(m -> m.getUser().getId()).collect(Collectors.toList()));
-        }
-        messageResponse.setElements(this.mapMessageElementsToResponse(message.getMessageElements()));
-        return messageResponse;
+
+        // Set elements
+        List<MessageElement> elements = message.getMessageElements();
+        response.setElements(elements != null ? this.mapMessageElementsToResponse(elements) : Collections.emptyList());
+        response.setRead(false);
+        response.setCreatedAt(message.getCreatedAt());
+
+        return response;
     }
 
     @Override
@@ -303,6 +316,7 @@ public class ChatServiceImpl implements ChatService {
                         contentElement.setParentId(sectionId);
                         contentElement.setType(contentReq.getType());
                         contentElement.setContent(contentReq.getContent());
+                        log.info("Content text-list direct: {}", contentReq.getContent());
                         contentElement.setBold(contentReq.isBold());
                         contentElement.setItalic(contentReq.isItalic());
                         contentElement.setUnderline(contentReq.isUnderline());
@@ -311,8 +325,8 @@ public class ChatServiceImpl implements ChatService {
                     }
                 }
             } else if (elementReq.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION) {
-                String sectionId = UUID.randomUUID().toString();
                 // TEXT_SECTION trực tiếp
+                String sectionId = UUID.randomUUID().toString();
                 MessageElement sectionElement = new MessageElement();
                 sectionElement.setId(sectionId);
                 sectionElement.setParentId(null);
@@ -323,12 +337,17 @@ public class ChatServiceImpl implements ChatService {
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
                     // TEXT_SECTION (cha của TEXT/EMOJI/USER)
-                    for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
-                        String contentId = UUID.randomUUID().toString();
-                        MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
-                        contentElement.setMessage(message);
-                        result.add(contentElement);
-                    }
+                    String contentId = UUID.randomUUID().toString();
+                    MessageElementContentRequest contentReq = new MessageElementContentRequest();
+                    contentReq.setContent(sectionReq.getContent());
+                    log.info("Content text-section direct: {}", contentReq.getContent());
+                    contentReq.setType(MESSAGE_ELEMENT_TYPE.TEXT);
+                    contentReq.setBold(contentReq.isBold());
+                    contentReq.setItalic(contentReq.isItalic());
+                    contentReq.setUnderline(contentReq.isUnderline());
+                    MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
+                    contentElement.setMessage(message);
+                    result.add(contentElement);
                 }
 
             }
@@ -370,11 +389,11 @@ public class ChatServiceImpl implements ChatService {
                 mapIdToResponse.put(messageElement.getId(), textListResponse);
             }
             if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() == null) {
-                MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse ();
+                MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
                 sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
                 sectionResponse.setStyle(messageElement.getStyle());
                 sectionResponse.setIndent(messageElement.getIndent());
-                sectionResponse.setElements(new ArrayList<>());
+                sectionResponse.setContentElements(new ArrayList<>());
                 mapIdToResponse.put(messageElement.getId(), sectionResponse);
             }
         }
@@ -395,11 +414,7 @@ public class ChatServiceImpl implements ChatService {
                         if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null && element.getParentId().equals(sectionId)) {
                             MessageElementResponse parent = mapIdToResponse.get(parentId);
                             if (parent != null && parent.getElements() != null) {
-                                MessageElementContentResponse text = new MessageElementContentResponse();
-                                text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
-                                text.setContent(element.getContent());
-                                text.setStyle(element.getStyle());
-                                text.setIndent(element.getIndent());
+                                MessageElementContentResponse text = getMessageElementContentResponse(element);
                                 sectionResponse.getContentElements().add(text);
                             }
                         }
@@ -413,11 +428,10 @@ public class ChatServiceImpl implements ChatService {
             if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null) {
                 MessageElementSectionResponse parent = (MessageElementSectionResponse) mapIdToResponse.get(element.getParentId());
                 if (parent != null && parent.getElements() != null) {
-                    MessageElementContentResponse text = new MessageElementContentResponse();
-                    text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
-                    text.setContent(element.getContent());
-                    text.setStyle(element.getStyle());
-                    text.setIndent(element.getIndent());
+                    MessageElementContentResponse text = getMessageElementContentResponse(element);
+                    parent.getContentElements().add(text);
+                } else if (parent != null && parent.getContentElements() != null) {
+                    MessageElementContentResponse text = getMessageElementContentResponse(element);
                     parent.getContentElements().add(text);
                 }
             }
@@ -428,6 +442,18 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return result;
+    }
+
+    private static MessageElementContentResponse getMessageElementContentResponse(MessageElement element) {
+        MessageElementContentResponse text = new MessageElementContentResponse();
+        text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
+        text.setContent(element.getContent());
+        text.setStyle(element.getStyle());
+        text.setIndent(element.getIndent());
+        text.setBold(element.isBold());
+        text.setItalic(element.isItalic());
+        text.setUnderline(element.isUnderline());
+        return text;
     }
 
     @Override
@@ -450,19 +476,33 @@ public class ChatServiceImpl implements ChatService {
         return response;
     }
 
+    // TODO: tomorrow
+    @Transactional
     @Override
     public String deleteMessage(String conversationId, String messageId) throws NotFoundException {
-        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
-        this.messageRepository.deleteById(message.getId());
-        // TODO: ban realtime
-        String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
+        log.info("Deleting message: {}", messageId);
+
+        this.conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+
+        Message message = this.messageRepository.findById(messageId)
+                .orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        MessageResponse response = this.mapMessageToMessageResponse(message);
+        CONVERSATION_TYPE conversationType = message.getConversation().getType();
+
+        this.messageRepository.delete(message);
+        log.info("After delete: {}", messageRepository.existsById(messageId));
+
+        String exchangeName = conversationType.compareTo(CONVERSATION_TYPE.PRIVATE) > 0
+                ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE
+                : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         rabbitTemplate.convertAndSend(
                 exchangeName,
                 RabbitMQSchema.getGroupChatRoutingKey(conversationId),
                 buildRabbitRequest(
                         RabbitMQSchema.getGroupChatAllRoutingKey(conversationId),
-                        this.mapMessageToMessageResponse(message),
+                        response,
                         PushNotificationAction.DELETE_MESSAGE
                 )
         );
@@ -479,13 +519,13 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListOfMessages(String conversationId, Integer paging) throws NotFoundException {
-        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         List<Message> messageList = this.messageRepository.getListMessagesByConversationId(conversationId, paging);
         List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
 
         Integer countAbove = this.messageRepository.countAboveMessages(conversationId, messageList.get(messageList.size() - 1).getCreatedAt());
         Integer countBelow = this.messageRepository.countBelowMessages(conversationId, messageList.get(0).getCreatedAt());
-        int countOther = countAbove + countBelow - paging;
+        int countOther = Math.max(0, countAbove + countBelow - paging);
         CenteredMetadata centeredMetadata = new CenteredMetadata();
         centeredMetadata.setCountOther(countOther);
         centeredMetadata.setCountAbove(countAbove);
@@ -514,7 +554,7 @@ public class ChatServiceImpl implements ChatService {
 
         Integer countAbove = this.messageRepository.countAboveMessages(conversationId, message.getCreatedAt());
         Integer countBelow = this.messageRepository.countBelowMessages(conversationId, message.getCreatedAt());
-        int countOther = countAbove + countBelow - paging;
+        int countOther = Math.max(0, countAbove + countBelow - paging);
         CenteredMetadata centeredMetadata = new CenteredMetadata();
         centeredMetadata.setCountOther(countOther);
         centeredMetadata.setCountAbove(countAbove);
@@ -569,7 +609,7 @@ public class ChatServiceImpl implements ChatService {
 
         Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
         Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
-        int countOther = countAbove + countBelow - paging;
+        int countOther = Math.max(0, countAbove + countBelow - paging);
         CenteredMetadata centeredMetadata = new CenteredMetadata();
         centeredMetadata.setCountOther(countOther);
         centeredMetadata.setCountAbove(countAbove);
@@ -602,7 +642,7 @@ public class ChatServiceImpl implements ChatService {
 
         Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
         Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
-        int countOther = countAbove + countBelow - paging;
+        int countOther = Math.max(0, countAbove + countBelow - paging);
         CenteredMetadata centeredMetadata = new CenteredMetadata();
         centeredMetadata.setCountOther(countOther);
         centeredMetadata.setCountAbove(countAbove);

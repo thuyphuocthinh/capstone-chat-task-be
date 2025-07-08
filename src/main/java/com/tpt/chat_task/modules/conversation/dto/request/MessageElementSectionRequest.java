@@ -20,6 +20,14 @@ public class MessageElementSectionRequest {
     @ValidEnum(enumClass = MESSAGE_ELEMENT_TYPE.class)
     private MESSAGE_ELEMENT_TYPE type;
 
+    private String content;
+
+    private boolean isBold;
+
+    private boolean isItalic;
+
+    private boolean isUnderline;
+
     @NotEmpty(message = "Message element section cannot be empty")
     private List<MessageElementContentRequest> elements;
 }

@@ -12,4 +12,7 @@ import lombok.experimental.SuperBuilder;
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
 public class MessageElementContentResponse extends MessageElementResponse {
     private String content;
+    private boolean isBold;
+    private boolean isItalic;
+    private boolean isUnderline;
 }
