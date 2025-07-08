@@ -61,6 +61,10 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     """, nativeQuery = true)
     void deleteMessageResources(@Param("messageId") String messageId);
 
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.id = :id")
+    void forceDelete(@Param("id") String id);
+
 
     @Query(value = """
         SELECT COUNT(*)

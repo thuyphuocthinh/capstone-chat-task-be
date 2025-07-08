@@ -491,7 +491,7 @@ public class ChatServiceImpl implements ChatService {
         MessageResponse response = this.mapMessageToMessageResponse(message);
         CONVERSATION_TYPE conversationType = message.getConversation().getType();
 
-        this.messageRepository.delete(message);
+        this.messageRepository.forceDelete(messageId);
         log.info("After delete: {}", messageRepository.existsById(messageId));
 
         String exchangeName = conversationType.compareTo(CONVERSATION_TYPE.PRIVATE) > 0
