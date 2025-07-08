@@ -83,7 +83,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE conversation_id = :conversationId AND pinned = true
+        WHERE conversation_id = :conversationId AND is_pinned = true
     """, nativeQuery = true)
     List<Message> getListPinnedMessagesByConversationId(@Param("conversationId") String conversationId);
 

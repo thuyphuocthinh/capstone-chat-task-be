@@ -49,6 +49,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -569,6 +570,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         String userId = this.jwtProvider.getIdFromToken(token);
@@ -576,30 +578,25 @@ public class ChatServiceImpl implements ChatService {
         List<MessageElementRequest> elements = request.getElements();
         List<MultipartFile> files = request.getFiles();
         Message replyMessage = new Message();
-
         if(files != null && !files.isEmpty()) {
             List<Resource> resources = resourceService.uploadMultipleFiles(files);
             message.setResources(resources);
         }
-
         if(elements.isEmpty()){
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
-
-        List<MessageElement> messageElements = this.buildMessageElements(elements, message);
-        message.setMessageElements(messageElements);
-
+        List<MessageElement> messageElements = this.buildMessageElements(elements, replyMessage);
+        replyMessage.setMessageElements(messageElements);
         replyMessage.setUser(sender);
         replyMessage.setParentId(message.getId());
+        replyMessage.setConversation(message.getConversation());
         if(!message.isThreadRoot()) {
             message.setThreadRoot(true);
             this.messageRepository.save(message);
         }
-        replyMessage = this.messageRepository.save(message);
-
+        replyMessage = this.messageRepository.save(replyMessage);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, message.getConversation().getId(), response, PushNotificationAction.SEND_MESSAGE);
-
         return this.mapMessageToMessageResponse(replyMessage);
     }
 
