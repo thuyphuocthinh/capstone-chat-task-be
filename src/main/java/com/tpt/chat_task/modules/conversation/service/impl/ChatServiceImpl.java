@@ -352,6 +352,10 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
+        for (MessageElement messageElement : messageElements) {
+            log.info("message element from database {} {} {} {} ", messageElement.getId(), messageElement.getParentId(), messageElement.getContent(), messageElement.getType());
+        }
+
         // GET TEXT_LIST && // GET TEXT_SECTION WITHOUT PARENT_ID
         Map<String, MessageElementResponse> mapIdToResponse = new HashMap<>();
         List<MessageElementResponse> result = new ArrayList<>();
@@ -383,8 +387,23 @@ public class ChatServiceImpl implements ChatService {
                 if(parentElement != null) {
                     MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
                     sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
+                    sectionResponse.setContentElements(new ArrayList<>());
                     List<MessageElementSectionResponse> sectionResponses = parentElement.getElements();
                     sectionResponses.add(sectionResponse);
+                    for (MessageElement element : messageElements) {
+                        String sectionId = messageElement.getId();
+                        if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null && element.getParentId().equals(sectionId)) {
+                            MessageElementResponse parent = mapIdToResponse.get(parentId);
+                            if (parent != null && parent.getElements() != null) {
+                                MessageElementContentResponse text = new MessageElementContentResponse();
+                                text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
+                                text.setContent(element.getContent());
+                                text.setStyle(element.getStyle());
+                                text.setIndent(element.getIndent());
+                                sectionResponse.getContentElements().add(text);
+                            }
+                        }
+                    }
                 }
             }
         }
