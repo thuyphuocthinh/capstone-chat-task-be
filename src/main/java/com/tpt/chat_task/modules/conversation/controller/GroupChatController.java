@@ -103,7 +103,7 @@ public class GroupChatController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/{conversationId}")
+    @GetMapping("/{conversationId}/messages")
     public ResponseEntity<?> getListMessagesByConversationId(
             @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging,
             @PathVariable String conversationId

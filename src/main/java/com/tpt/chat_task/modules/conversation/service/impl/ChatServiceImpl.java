@@ -35,6 +35,7 @@ import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatServiceImpl implements ChatService {
     private final MessageElementRepository messageElementRepository;
 
@@ -87,13 +89,13 @@ public class ChatServiceImpl implements ChatService {
         Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
         List<MultipartFile> files = request.getFiles();
-        Message message = buildAndSaveMessage(request, sender, files);
+        Message message = buildAndSaveMessage(request, sender, files, conversation);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.SEND_MESSAGE);
         return response;
     }
 
-    private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files) throws IOException {
+    private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files, Conversation conversation) throws IOException {
         Message message = new Message();
         if (files != null && !files.isEmpty()) {
             List<Resource> resources = resourceService.uploadMultipleFiles(files);
@@ -104,9 +106,12 @@ public class ChatServiceImpl implements ChatService {
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
 
-        List<MessageElement> messageElements = this.buildMessageElements(request.getElements());
-        message.setMessageElements(messageElements);
+        message.setConversation(conversation);
         message.setUser(sender);
+
+        // Build elements trước
+        List<MessageElement> messageElements = this.buildMessageElements(request.getElements(), message);
+        message.setMessageElements(messageElements);
 
         return messageRepository.save(message);
     }
@@ -150,16 +155,22 @@ public class ChatServiceImpl implements ChatService {
         messageResponse.setSenderId(message.getUser().getId());
         messageResponse.setPinned(message.isPinned());
         messageResponse.setConversationId(message.getConversation().getId());
-        messageResponse.setFiles(message.getResources().stream().map(resource -> {
-            return MessageResourceResponse.builder()
-                    .id(resource.getId())
-                    .url(resource.getLink())
-                    .name(resource.getName())
-                    .resourceType(resource.getType())
-                    .createdAt(resource.getCreatedAt())
-                    .build();
-        }).toList());
-        messageResponse.setReactions(iconService.getReactionsByMessageId(message.getId()));
+        if (message.getResources() != null && !message.getResources().isEmpty()) {
+            messageResponse.setFiles(
+                    message.getResources().stream().map(resource ->
+                            MessageResourceResponse.builder()
+                                    .id(resource.getId())
+                                    .url(resource.getLink())
+                                    .name(resource.getName())
+                                    .resourceType(resource.getType())
+                                    .createdAt(resource.getCreatedAt())
+                                    .build()
+                    ).toList()
+            );
+        }
+        Optional.ofNullable(iconService.getReactionsByMessageId(message.getId()))
+                .filter(reactions -> !reactions.isEmpty())
+                .ifPresent(messageResponse::setReactions);
         // messageResponse.setUserReplyIds (if exist)
         if(message.getParentId() == null){
             messageResponse.setUserIds(new ArrayList<>());
@@ -256,7 +267,7 @@ public class ChatServiceImpl implements ChatService {
         return userIds.stream().sorted().collect(Collectors.toList());
     }
 
-    private List<MessageElement> buildMessageElements(List<MessageElementRequest> requestElements) {
+    private List<MessageElement> buildMessageElements(List<MessageElementRequest> requestElements, Message message) {
         List<MessageElement> result = new ArrayList<>();
 
         for (MessageElementRequest elementReq : requestElements) {
@@ -270,6 +281,7 @@ public class ChatServiceImpl implements ChatService {
                 listElement.setType(elementReq.getType());
                 listElement.setStyle(elementReq.getStyle());
                 listElement.setIndent(elementReq.getIndent());
+                listElement.setMessage(message);
                 result.add(listElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
@@ -280,11 +292,11 @@ public class ChatServiceImpl implements ChatService {
                     sectionElement.setParentId(textListId);
                     sectionElement.setType(sectionReq.getType());
                     sectionElement.setIndent(0);
+                    sectionElement.setMessage(message);
                     result.add(sectionElement);
 
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
                         String contentId = UUID.randomUUID().toString();
-
                         // TEXT / EMOJI / USER
                         MessageElement contentElement = new MessageElement();
                         contentElement.setId(contentId);
@@ -294,38 +306,36 @@ public class ChatServiceImpl implements ChatService {
                         contentElement.setBold(contentReq.isBold());
                         contentElement.setItalic(contentReq.isItalic());
                         contentElement.setUnderline(contentReq.isUnderline());
+                        contentElement.setMessage(message);
                         result.add(contentElement);
                     }
                 }
             } else if (elementReq.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION) {
                 String sectionId = UUID.randomUUID().toString();
-
                 // TEXT_SECTION trực tiếp
                 MessageElement sectionElement = new MessageElement();
                 sectionElement.setId(sectionId);
                 sectionElement.setParentId(null);
                 sectionElement.setType(elementReq.getType());
                 sectionElement.setIndent(elementReq.getIndent());
+                sectionElement.setMessage(message);
                 result.add(sectionElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
                     // TEXT_SECTION (cha của TEXT/EMOJI/USER)
-                    sectionElement.setId(sectionId);
-                    sectionElement.setType(sectionReq.getType());
-                    sectionElement.setIndent(0);
-                    result.add(sectionElement);
-
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
                         String contentId = UUID.randomUUID().toString();
-
                         MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
+                        contentElement.setMessage(message);
                         result.add(contentElement);
                     }
                 }
 
             }
         }
-
+        for (MessageElement el : result) {
+            log.info("Saving: id={}, content={}, type={}", el.getId(), el.getContent(), el.getType());
+        }
         return result;
     }
 
@@ -354,16 +364,14 @@ public class ChatServiceImpl implements ChatService {
                 textListResponse.setIndent(messageElement.getIndent());
                 textListResponse.setElements(new ArrayList<>());
                 mapIdToResponse.put(messageElement.getId(), textListResponse);
-                result.add(textListResponse);
             }
             if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() == null) {
-                MessageElementResponse sectionResponse = new MessageElementResponse();
+                MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse ();
                 sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
                 sectionResponse.setStyle(messageElement.getStyle());
                 sectionResponse.setIndent(messageElement.getIndent());
                 sectionResponse.setElements(new ArrayList<>());
                 mapIdToResponse.put(messageElement.getId(), sectionResponse);
-                result.add(sectionResponse);
             }
         }
 
@@ -377,7 +385,6 @@ public class ChatServiceImpl implements ChatService {
                     sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
                     List<MessageElementSectionResponse> sectionResponses = parentElement.getElements();
                     sectionResponses.add(sectionResponse);
-                    mapIdToResponse.put(messageElement.getId(), sectionResponse);
                 }
             }
         }
@@ -386,7 +393,7 @@ public class ChatServiceImpl implements ChatService {
         for (MessageElement element : messageElements) {
             if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null) {
                 MessageElementSectionResponse parent = (MessageElementSectionResponse) mapIdToResponse.get(element.getParentId());
-                if (parent != null) {
+                if (parent != null && parent.getElements() != null) {
                     MessageElementContentResponse text = new MessageElementContentResponse();
                     text.setType(MESSAGE_ELEMENT_TYPE.TEXT);
                     text.setContent(element.getContent());
@@ -395,6 +402,10 @@ public class ChatServiceImpl implements ChatService {
                     parent.getContentElements().add(text);
                 }
             }
+        }
+
+        for (Map.Entry<String, MessageElementResponse> entry : mapIdToResponse.entrySet()) {
+            result.add(entry.getValue());
         }
 
         return result;
@@ -412,7 +423,7 @@ public class ChatServiceImpl implements ChatService {
     public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException, IOException {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
         this.messageElementRepository.deleteByMessageId(messageId);
-        List<MessageElement> messageElements = this.buildMessageElements(request.getElements());
+        List<MessageElement> messageElements = this.buildMessageElements(request.getElements(), message);
         message.setMessageElements(messageElements);
         this.messageRepository.save(message);
         MessageResponse response = this.mapMessageToMessageResponse(message);
@@ -515,7 +526,7 @@ public class ChatServiceImpl implements ChatService {
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
 
-        List<MessageElement> messageElements = this.buildMessageElements(elements);
+        List<MessageElement> messageElements = this.buildMessageElements(elements, message);
         message.setMessageElements(messageElements);
 
         replyMessage.setUser(sender);

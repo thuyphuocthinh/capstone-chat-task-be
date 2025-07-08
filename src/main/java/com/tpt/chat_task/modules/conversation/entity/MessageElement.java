@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -20,18 +21,19 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Data
 @Builder
+@Slf4j
 public class MessageElement {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    // @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
     private String id;
 
-    @Column(length = 36, nullable = false, name = "parent_id")
+    @Column(length = 36, name = "parent_id")
     private String parentId;
 
     @Column(name = "indent")
     @Min(value = 0, message = "Message indent cannot be negative")
-    private int indent;
+    private int indent = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "style", length = 20)
@@ -46,8 +48,7 @@ public class MessageElement {
     @Column(name = "is_underline")
     private boolean isUnderline = false;
 
-    @Lob
-    @Column(columnDefinition = "TEXT", nullable = false, name = "content")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
     @Enumerated(EnumType.STRING)
@@ -66,4 +67,9 @@ public class MessageElement {
     @ManyToOne
     @JoinColumn(name = "message_id", nullable = false)
     private Message message;
+
+    public void setContent(String content) {
+        log.info("set content message elements: {}", content);
+        this.content = content;
+    }
 }
