@@ -511,9 +511,10 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public String togglePinMessage(String conversationId, String messageId) throws NotFoundException {
-        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         message.setPinned(!message.isPinned());
+        this.messageRepository.save(message);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -569,7 +570,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
@@ -657,7 +658,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public String toggleReactMessage(String messageId, String iconId) throws NotFoundException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         Icon icon = this.iconRepository.findById(iconId).orElseThrow(() -> new NotFoundException(ConversationError.ICON_NOT_FOUND));
         MessageReaction messageReaction = this.messageReactionRepository.getReactionByMessageIdAndIconId(message.getId(), icon.getId());
         String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
