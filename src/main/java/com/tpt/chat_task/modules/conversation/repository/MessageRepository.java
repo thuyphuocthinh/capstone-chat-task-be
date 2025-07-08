@@ -83,7 +83,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE conversation_id = :conversationId AND pinned = true
+        WHERE conversation_id = :conversationId AND is_pinned = true
     """, nativeQuery = true)
     List<Message> getListPinnedMessagesByConversationId(@Param("conversationId") String conversationId);
 
@@ -137,7 +137,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     Message findByParentId(String parentId);
 
     @Query(value = """
-        SELECT me.*
+        SELECT m.*
         FROM message_elements me
         JOIN messages m ON me.message_id = m.id
         JOIN conversations c ON m.conversation_id = c.id
@@ -148,6 +148,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
             @Param("conversationId") String conversationId,
             @Param("keyword") String keyword
     );
+
 
     @Query(value = """
         SELECT DISTINCT m.*

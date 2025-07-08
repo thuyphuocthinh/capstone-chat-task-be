@@ -13,16 +13,16 @@ import java.util.List;
 public interface ResourceRepository extends JpaRepository<Resource, String> {
     @Query(value = """
         SELECT r.*
-        FROM resource r
-        JOIN messages m ON r.message_id = m.id
+        FROM resources r
+        JOIN messages m ON m.id = r.message_id
         WHERE m.conversation_id = :conversationId
     """, nativeQuery = true)
     List<Resource> findByConversationId(@Param("conversationId") String conversationId);
 
     @Query(value = """
         SELECT r.*
-        FROM resource r
-        JOIN messages m ON r.message_id = m.id
+        FROM resources r
+        JOIN messages m ON m.id = r.message_id
         WHERE m.conversation_id = :conversationId AND r.type = :type
     """, nativeQuery = true)
     List<Resource> findByConversationIdAndType(@Param("conversationId") String conversationId, @Param("type")RESOURCE_TYPE type);

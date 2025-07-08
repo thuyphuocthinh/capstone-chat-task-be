@@ -49,6 +49,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -466,17 +467,17 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public MessageResponse updateMessage(String conversationId, String messageId, MessageRequest request) throws NotFoundException, IOException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
-        this.messageElementRepository.deleteByMessageId(messageId);
+        Message message = this.messageRepository.findById(messageId)
+                .orElseThrow(() -> new NotFoundException(messageId));
         List<MessageElement> messageElements = this.buildMessageElements(request.getElements(), message);
-        message.setMessageElements(messageElements);
+        message.getMessageElements().clear();             // Hibernate sẽ xóa cũ
+        message.getMessageElements().addAll(messageElements); // Thêm mới
         this.messageRepository.save(message);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.UPDATE_MESSAGE);
         return response;
     }
 
-    // TODO: tomorrow
     @Transactional
     @Override
     public String deleteMessage(String conversationId, String messageId) throws NotFoundException {
@@ -511,9 +512,10 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public String togglePinMessage(String conversationId, String messageId) throws NotFoundException {
-        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         message.setPinned(!message.isPinned());
+        this.messageRepository.save(message);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -568,37 +570,33 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
         List<MultipartFile> files = request.getFiles();
         Message replyMessage = new Message();
-
         if(files != null && !files.isEmpty()) {
             List<Resource> resources = resourceService.uploadMultipleFiles(files);
             message.setResources(resources);
         }
-
         if(elements.isEmpty()){
             throw new BadRequestException(ConversationError.INVALID_REQUEST_CREATE_MESSAGE);
         }
-
-        List<MessageElement> messageElements = this.buildMessageElements(elements, message);
-        message.setMessageElements(messageElements);
-
+        List<MessageElement> messageElements = this.buildMessageElements(elements, replyMessage);
+        replyMessage.setMessageElements(messageElements);
         replyMessage.setUser(sender);
         replyMessage.setParentId(message.getId());
+        replyMessage.setConversation(message.getConversation());
         if(!message.isThreadRoot()) {
             message.setThreadRoot(true);
             this.messageRepository.save(message);
         }
-        replyMessage = this.messageRepository.save(message);
-
+        replyMessage = this.messageRepository.save(replyMessage);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         this.pushToQueueAsyncSendMessageAction(request, message.getConversation().getId(), response, PushNotificationAction.SEND_MESSAGE);
-
         return this.mapMessageToMessageResponse(replyMessage);
     }
 
@@ -656,8 +654,10 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public String toggleReactMessage(String messageId, String iconId) throws NotFoundException {
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+    public String toggleReactMessage(String token, String messageId, String iconId) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
         Icon icon = this.iconRepository.findById(iconId).orElseThrow(() -> new NotFoundException(ConversationError.ICON_NOT_FOUND));
         MessageReaction messageReaction = this.messageReactionRepository.getReactionByMessageIdAndIconId(message.getId(), icon.getId());
         String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
@@ -676,9 +676,15 @@ public class ChatServiceImpl implements ChatService {
                     buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE)
             );
             // push queue to save notification for sender of the message you react to
+            MessageUserIconId id = new MessageUserIconId();
+            id.setMessageId(message.getId());
+            id.setUserId(user.getId());
+            id.setIconId(icon.getId());
             messageReaction = MessageReaction.builder()
+                    .id(id)
                     .message(message)
                     .icon(icon)
+                    .user(user)
                     .build();
             this.messageReactionRepository.save(messageReaction);
         }
