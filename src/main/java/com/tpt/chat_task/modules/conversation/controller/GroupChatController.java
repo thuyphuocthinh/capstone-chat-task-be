@@ -123,7 +123,7 @@ public class GroupChatController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/{conversationId}/search")
+    @GetMapping("/{conversationId}/messages/search")
     public ResponseEntity<?> searchMessagesByConversationIdAndKeyword(
             @PathVariable String conversationId,
             @RequestParam(name = "keyword", required = false, defaultValue = "") String keyword
