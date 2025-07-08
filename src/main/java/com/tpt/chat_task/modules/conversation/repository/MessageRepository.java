@@ -14,14 +14,14 @@ import java.util.List;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, String> {
+
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE parent_id = ?1
+        WHERE parent_id = :messageId
     """, nativeQuery = true)
-    List<Message> getRepliesByMessageId(String messageId);
+    List<Message> getRepliesByMessageId(@Param("messageId") String messageId);
 
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
@@ -29,95 +29,110 @@ public interface MessageRepository extends JpaRepository<Message, String> {
         ORDER BY created_at DESC
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListMessagesByConversationId(String conversationId, int limit);
+    List<Message> getListMessagesByConversationId(@Param("conversationId") String conversationId, @Param("limit") int limit);
 
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE conversation_id = :conversationId AND created_at >= :createdAt
+        WHERE conversation_id = :conversationId AND created_at < :time
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListMessagesByConversationIdAndAboveTime(String conversationId, LocalDateTime time, int limit);
+    List<Message> getListMessagesByConversationIdAndAboveTime(
+            @Param("conversationId") String conversationId,
+            @Param("time") LocalDateTime time,
+            @Param("limit") int limit
+    );
 
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE conversation_id = :conversationId AND created_at <= :createdAt
+        WHERE conversation_id = :conversationId AND created_at > :time
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListMessagesByConversationIdAndBelowTime(String conversationId, LocalDateTime time, int limit);
+    List<Message> getListMessagesByConversationIdAndBelowTime(
+            @Param("conversationId") String conversationId,
+            @Param("time") LocalDateTime time,
+            @Param("limit") int limit
+    );
 
     @Modifying
+    @Query(value = """
+        DELETE FROM message_resources WHERE message_id = :messageId
+    """, nativeQuery = true)
+    void deleteMessageResources(@Param("messageId") String messageId);
+
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.id = :id")
+    void forceDelete(@Param("id") String id);
+
+
     @Query(value = """
         SELECT COUNT(*)
         FROM messages
-        WHERE created_at >= :time AND conversation_id = :conversationId
+        WHERE created_at < :time AND conversation_id = :conversationId
     """, nativeQuery = true)
-    Integer countAboveMessages(String conversationId, LocalDateTime time);
+    Integer countAboveMessages(@Param("conversationId") String conversationId, @Param("time") LocalDateTime time);
 
-    @Modifying
     @Query(value = """
         SELECT COUNT(*)
         FROM messages
-        WHERE created_at <= :time AND conversation_id = :conversationId
+        WHERE created_at > :time AND conversation_id = :conversationId
     """, nativeQuery = true)
-    Integer countBelowMessages(String conversationId, LocalDateTime time);
+    Integer countBelowMessages(@Param("conversationId") String conversationId, @Param("time") LocalDateTime time);
 
-    @Modifying
-    @Query(value = """
-        SELECT *
-        FROM messaegs
-        WHERE conversation_id = :conversationId
-    """, nativeQuery = true)
-    List<Message> getListPinnedMessagesByConversationId(String conversationId);
-
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE parent_id := messageId
+        WHERE conversation_id = :conversationId AND pinned = true
+    """, nativeQuery = true)
+    List<Message> getListPinnedMessagesByConversationId(@Param("conversationId") String conversationId);
+
+    @Query(value = """
+        SELECT *
+        FROM messages
+        WHERE parent_id = :messageId
         ORDER BY created_at DESC
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListRepliesMessageByMessageId(String messageId, Integer limit);
+    List<Message> getListRepliesMessageByMessageId(@Param("messageId") String messageId, @Param("limit") Integer limit);
 
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE parent_id := messageId AND created_at >= :createdAt
+        WHERE parent_id = :messageId AND created_at < :time
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListRepliesMessageByMessageIdAndAboveTime(String messageId, LocalDateTime time, Integer limit);
+    List<Message> getListRepliesMessageByMessageIdAndAboveTime(
+            @Param("messageId") String messageId,
+            @Param("time") LocalDateTime time,
+            @Param("limit") Integer limit
+    );
 
-
-    @Modifying
     @Query(value = """
         SELECT *
         FROM messages
-        WHERE parent_id := messageId AND created_at <= :createdAt
+        WHERE parent_id = :messageId AND created_at > :time
         LIMIT :limit
     """, nativeQuery = true)
-    List<Message> getListRepliesMessageByMessageIdAndBelowTime(String messageId, LocalDateTime time, Integer limit);
+    List<Message> getListRepliesMessageByMessageIdAndBelowTime(
+            @Param("messageId") String messageId,
+            @Param("time") LocalDateTime time,
+            @Param("limit") Integer limit
+    );
 
-
-    @Modifying
     @Query(value = """
         SELECT COUNT(*)
         FROM messages
-        WHERE created_at >= :time AND parent_id = :messageId
+        WHERE created_at < :time AND parent_id = :messageId
     """, nativeQuery = true)
-    Integer countAboveMessagesReplies(String messageId, LocalDateTime time);
+    Integer countAboveMessagesReplies(@Param("messageId") String messageId, @Param("time") LocalDateTime time);
 
-    @Modifying
     @Query(value = """
         SELECT COUNT(*)
         FROM messages
-        WHERE created_at <= :time AND parent_id = :messageId
+        WHERE created_at > :time AND parent_id = :messageId
     """, nativeQuery = true)
-    Integer countBelowMessagesReplies(String messageId, LocalDateTime time);
+    Integer countBelowMessagesReplies(@Param("messageId") String messageId, @Param("time") LocalDateTime time);
 
     Message findByParentId(String parentId);
 
@@ -148,7 +163,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
           )
         ORDER BY m.conversation_id, m.created_at
         """,
-                countQuery = """
+            countQuery = """
         SELECT COUNT(DISTINCT m.id)
         FROM messages m
         JOIN message_elements me ON me.message_id = m.id
@@ -162,5 +177,4 @@ public interface MessageRepository extends JpaRepository<Message, String> {
           )
         """, nativeQuery = true)
     Page<Message> findAllThreadMessages(@Param("userId") String userId, Pageable pageable);
-
 }

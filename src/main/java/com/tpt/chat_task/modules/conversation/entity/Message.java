@@ -49,15 +49,10 @@ public class Message {
     @OneToMany(mappedBy = "message", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MessageElement> messageElements = new ArrayList<>();
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            joinColumns = @JoinColumn(name = "message_id", nullable = false),
-            inverseJoinColumns = @JoinColumn(name = "resource_id", nullable = false),
-            name = "message_resources"
-    )
-    private List<Resource> resources;
+    @OneToMany(mappedBy = "message", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Resource> resources = new ArrayList<>();
 
-    @OneToMany(mappedBy = "message")
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MessageSeen> messageSeen = new ArrayList<>();
 
     @ManyToOne

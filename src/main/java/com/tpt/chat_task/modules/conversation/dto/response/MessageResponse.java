@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @AllArgsConstructor
@@ -21,4 +22,5 @@ public class MessageResponse {
     private List<MessageResourceResponse> files;
     private List<MessageReactResponse> reactions;
     private List<String> userIds;
+    private LocalDateTime createdAt;
 }

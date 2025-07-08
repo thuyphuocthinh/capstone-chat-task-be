@@ -13,7 +13,7 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
 
     @Query(value = """
         SELECT * 
-        FROM message_reaction AS mr
+        FROM message_reactions AS mr
         WHERE mr.message_id = ?1
     """, nativeQuery = true)
     List<MessageReaction> getReactionsByMessageId(String messageId);

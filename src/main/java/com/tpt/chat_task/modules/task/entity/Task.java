@@ -55,14 +55,6 @@ public class Task {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             joinColumns = @JoinColumn(name = "task_id", nullable = false),
-            inverseJoinColumns = @JoinColumn(name = "resource_id", nullable = false),
-            name = "task_resources"
-    )
-    private List<Resource> resources = new ArrayList<>();
-
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            joinColumns = @JoinColumn(name = "task_id", nullable = false),
             inverseJoinColumns = @JoinColumn(name = "user_id", nullable = false),
             name = "task_users"
     )
