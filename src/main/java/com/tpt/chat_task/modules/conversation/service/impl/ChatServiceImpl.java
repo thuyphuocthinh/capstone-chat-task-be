@@ -634,7 +634,7 @@ public class ChatServiceImpl implements ChatService {
         if(isAbove) {
             messageList = this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(messageId, message.getCreatedAt(), paging);
         } else {
-            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(messageId, message.getCreatedAt(), paging);
+            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndBelowTime(messageId, message.getCreatedAt(), paging);
         }
 
         List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
