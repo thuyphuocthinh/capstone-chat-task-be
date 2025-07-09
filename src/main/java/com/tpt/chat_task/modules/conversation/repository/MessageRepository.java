@@ -100,6 +100,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
         SELECT *
         FROM messages
         WHERE parent_id = :messageId AND created_at < :time
+        ORDER BY created_at DESC
         LIMIT :limit
     """, nativeQuery = true)
     List<Message> getListRepliesMessageByMessageIdAndAboveTime(
@@ -112,6 +113,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
         SELECT *
         FROM messages
         WHERE parent_id = :messageId AND created_at > :time
+        ORDER BY created_at ASC
         LIMIT :limit
     """, nativeQuery = true)
     List<Message> getListRepliesMessageByMessageIdAndBelowTime(
@@ -134,7 +136,12 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     """, nativeQuery = true)
     Integer countBelowMessagesReplies(@Param("messageId") String messageId, @Param("time") LocalDateTime time);
 
-    Message findByParentId(String parentId);
+    @Query(value = """
+        SELECT *
+        FROM messages
+        WHERE id = :parentId
+    """, nativeQuery = true)
+    Message findByParentId(@Param("parentId") String parentId);
 
     @Query(value = """
         SELECT m.*

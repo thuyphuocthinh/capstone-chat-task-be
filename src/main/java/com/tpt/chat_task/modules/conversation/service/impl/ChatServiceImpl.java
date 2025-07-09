@@ -622,37 +622,61 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(String parentId, String messageId, Integer paging, boolean isAbove) throws NotFoundException {
-        Message parentMessage = this.messageRepository.findByParentId(parentId);
-        if(parentMessage == null){
-            throw new NotFoundException(ConversationError.MESSAGE_NOT_FOUND);
+    public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(
+            String parentId,
+            String messageId,
+            Integer paging,
+            boolean isAbove
+    ) throws NotFoundException {
+        Message centerMessage = this.messageRepository.findById(messageId)
+                .orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        List<Message> messageList = isAbove
+                ? this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(
+                parentId,
+                centerMessage.getCreatedAt(),
+                paging
+        )
+                : this.messageRepository.getListRepliesMessageByMessageIdAndBelowTime(
+                parentId,
+                centerMessage.getCreatedAt(),
+                paging
+        );
+
+        List<MessageResponse> messageResponses = messageList.stream()
+                .map(this::mapMessageToMessageResponse)
+                .toList();
+
+        if (messageList.isEmpty()) {
+            CenteredMetadata emptyMetadata = new CenteredMetadata(0, 0, 0);
+            return SuccessResponseWithCenteredMetadata.builder()
+                    .data(Collections.emptyList())
+                    .status(RESPONSE_STATUS.SUCCESS.toString())
+                    .metadata(emptyMetadata)
+                    .build();
         }
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
 
-        List<Message> messageList;
-
-        if(isAbove) {
-            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndAboveTime(messageId, message.getCreatedAt(), paging);
-        } else {
-            messageList = this.messageRepository.getListRepliesMessageByMessageIdAndBelowTime(messageId, message.getCreatedAt(), paging);
-        }
-
-        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
-
-        Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
-        Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
+        Integer countAbove = this.messageRepository.countAboveMessagesReplies(
+                parentId,
+                centerMessage.getCreatedAt()
+        );
+        Integer countBelow = this.messageRepository.countBelowMessagesReplies(
+                parentId,
+                centerMessage.getCreatedAt()
+        );
         int countOther = Math.max(0, countAbove + countBelow - paging);
-        CenteredMetadata centeredMetadata = new CenteredMetadata();
-        centeredMetadata.setCountOther(countOther);
-        centeredMetadata.setCountAbove(countAbove);
-        centeredMetadata.setCountBelow(countBelow);
+        CenteredMetadata metadata = new CenteredMetadata();
+        metadata.setCountOther(countOther);
+        metadata.setCountAbove(countAbove);
+        metadata.setCountBelow(countBelow);
 
         return SuccessResponseWithCenteredMetadata.builder()
                 .data(messageResponses)
                 .status(RESPONSE_STATUS.SUCCESS.toString())
-                .metadata(centeredMetadata)
+                .metadata(metadata)
                 .build();
     }
+
 
     @Override
     @Transactional
