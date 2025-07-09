@@ -50,6 +50,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 
+/*
+    Theo thứ tự trên xuống dưới
+* 1. Tối ưu query, index, entity => dễ làm, tác động lớn
+  2. Tách logic nặng qua thread riêng / async => tránh block
+  3. Caching kết quả / dữ liệu => giảm tải DB
+  4. Dùng load balancer khi scale nhiều user
+  5. Tối ưu infra: CDN, pub/sub, thread pool, queue
+* */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
