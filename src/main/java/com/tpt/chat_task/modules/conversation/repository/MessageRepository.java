@@ -166,7 +166,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
                 SELECT id FROM messages WHERE is_thread_root = true
             ))
           AND (
-            m.user_id = :userId
+            m.sender_id = :userId
             OR me.content = :userId
           )
         ORDER BY m.conversation_id, m.created_at
@@ -180,7 +180,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
                 SELECT id FROM messages WHERE is_thread_root = true
             ))
           AND (
-            m.user_id = :userId
+            m.sender_id = :userId
             OR me.content = :userId
           )
         """, nativeQuery = true)
