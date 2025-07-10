@@ -143,6 +143,7 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
         List<PrivateConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
             Message latestMessage = conversationRepository
                     .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
+            int countUnread = this.conversationRepository.countUnreadByConversationId(conversation.getId(), userId);
             return PrivateConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
@@ -150,6 +151,7 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
                     .type(CONVERSATION_TYPE.PRIVATE.toString())
                     .members(convertUsersListToConversationMemberResponseList(conversation.getUsers()))
                     .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
+                    .countUnread(countUnread)
                     .build();
         }).toList();
 
