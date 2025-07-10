@@ -63,9 +63,9 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
 
     @Query(value = """
         SELECT COUNT(*)
-        FROM messages m WHERE m.conversation_id = :conversationId
+        FROM messages m
         JOIN message_seen ms ON ms.message_id = m.id
-        WHERE ms.is_seen = FALSE AND ms.user_id = :userId
+        WHERE ms.is_seen = FALSE AND ms.user_id = :userId AND m.conversation_id = :conversationId
     """, nativeQuery = true)
     int countUnreadByConversationId(@Param("conversationId") String conversationId, @Param("userId") String userId);
 }
