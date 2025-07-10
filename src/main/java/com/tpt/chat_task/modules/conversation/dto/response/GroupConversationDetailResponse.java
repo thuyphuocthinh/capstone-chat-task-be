@@ -15,4 +15,5 @@ public class GroupConversationDetailResponse {
     private boolean isPinned;
     private String type;
     private MessageResponse message;
+    private int countUnread;
 }

@@ -160,11 +160,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
             Message latestMessage = conversationRepository
                     .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
+            int countUnread = this.conversationRepository.countUnreadByConversationId(conversation.getId(), userId);
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
                     .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
+                    .countUnread(countUnread)
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -195,11 +197,13 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
             Message latestMessage = conversationRepository
                     .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
+            int countUnread = this.conversationRepository.countUnreadByConversationId(conversation.getId(), userId);
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
                     .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
+                    .countUnread(countUnread)
                     .name(conversation.getName())
                     .build();
         }).toList();

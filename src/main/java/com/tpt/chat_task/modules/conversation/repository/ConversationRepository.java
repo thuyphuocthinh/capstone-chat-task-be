@@ -60,4 +60,12 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
         LIMIT 1
     """, nativeQuery = true)
     Message findFirstByConversationIdOrderByCreatedAtDesc(String conversationId);
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM messages m WHERE m.conversation_id = :conversationId
+        JOIN message_seen ms ON ms.message_id = m.id
+        WHERE ms.is_seen = FALSE AND ms.user_id = :userId
+    """, nativeQuery = true)
+    int countUnreadByConversationId(@Param("conversationId") String conversationId, @Param("userId") String userId);
 }
