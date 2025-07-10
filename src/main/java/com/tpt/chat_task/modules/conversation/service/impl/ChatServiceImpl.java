@@ -50,6 +50,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 
+/*
+    Theo thứ tự trên xuống dưới
+* 1. Tối ưu query, index, entity => dễ làm, tác động lớn
+  2. Tách logic nặng qua thread riêng / async => tránh block
+  3. Caching kết quả / dữ liệu => giảm tải DB
+  4. Dùng load balancer khi scale nhiều user
+  5. Tối ưu infra: CDN, pub/sub, thread pool, queue
+* */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -522,17 +531,23 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListOfMessages(String conversationId, Integer paging) throws NotFoundException {
-        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-        List<Message> messageList = this.messageRepository.getListMessagesByConversationId(conversationId, paging);
-        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+        Conversation conversation = this.conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
 
-        Integer countAbove = this.messageRepository.countAboveMessages(conversationId, messageList.get(messageList.size() - 1).getCreatedAt());
-        Integer countBelow = this.messageRepository.countBelowMessages(conversationId, messageList.get(0).getCreatedAt());
-        int countOther = Math.max(0, countAbove + countBelow - paging);
-        CenteredMetadata centeredMetadata = new CenteredMetadata();
-        centeredMetadata.setCountOther(countOther);
-        centeredMetadata.setCountAbove(countAbove);
-        centeredMetadata.setCountBelow(countBelow);
+        List<Message> messageList = this.messageRepository.getListMessagesByConversationId(conversationId, paging);
+        List<MessageResponse> messageResponses = messageList.stream()
+                .map(this::mapMessageToMessageResponse)
+                .toList();
+
+        Integer countAbove = 0;
+        Integer countBelow = 0;
+
+        if (!messageList.isEmpty()) {
+            countAbove = this.messageRepository.countAboveMessages(conversationId, messageList.get(messageList.size() - 1).getCreatedAt());
+            countBelow = this.messageRepository.countBelowMessages(conversationId, messageList.get(0).getCreatedAt());
+        }
+
+        CenteredMetadata centeredMetadata = buildCenteredMetadata(countAbove, countBelow);
 
         return SuccessResponseWithCenteredMetadata.builder()
                 .data(messageResponses)
@@ -541,27 +556,30 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
+
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListOfMessagesAboveOrBelow(String conversationId, String messageId, Integer paging, boolean isAbove) throws NotFoundException {
-        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(conversationId));
-        Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(messageId));
+        this.conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new NotFoundException(conversationId));
+
+        Message message = this.messageRepository.findById(messageId)
+                .orElseThrow(() -> new NotFoundException(messageId));
 
         List<Message> messageList;
-        if(isAbove) {
-            messageList = this.messageRepository.getListMessagesByConversationIdAndBelowTime(conversationId, message.getCreatedAt(), paging);
+        if (isAbove) {
+            messageList = this.messageRepository.getListMessagesByConversationIdAndAboveTime(conversationId, message.getCreatedAt(), paging);
         } else {
             messageList = this.messageRepository.getListMessagesByConversationIdAndBelowTime(conversationId, message.getCreatedAt(), paging);
         }
 
-        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+        List<MessageResponse> messageResponses = messageList.stream()
+                .map(this::mapMessageToMessageResponse)
+                .toList();
 
         Integer countAbove = this.messageRepository.countAboveMessages(conversationId, message.getCreatedAt());
         Integer countBelow = this.messageRepository.countBelowMessages(conversationId, message.getCreatedAt());
-        int countOther = Math.max(0, countAbove + countBelow - paging);
-        CenteredMetadata centeredMetadata = new CenteredMetadata();
-        centeredMetadata.setCountOther(countOther);
-        centeredMetadata.setCountAbove(countAbove);
-        centeredMetadata.setCountBelow(countBelow);
+
+        CenteredMetadata centeredMetadata = buildCenteredMetadata(countAbove, countBelow);
 
         return SuccessResponseWithCenteredMetadata.builder()
                 .data(messageResponses)
@@ -569,6 +587,7 @@ public class ChatServiceImpl implements ChatService {
                 .metadata(centeredMetadata)
                 .build();
     }
+
 
     @Override
     @Transactional
@@ -604,15 +623,24 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessage(String messageId, Integer paging) throws NotFoundException {
         List<Message> messageList = this.messageRepository.getListRepliesMessageByMessageId(messageId, paging);
-        List<MessageResponse> messageResponses = messageList.stream().map(this::mapMessageToMessageResponse).toList();
+        List<MessageResponse> messageResponses = messageList.stream()
+                .map(this::mapMessageToMessageResponse)
+                .toList();
 
-        Integer countAbove = this.messageRepository.countAboveMessagesReplies(messageId, messageList.get(messageList.size() - 1).getCreatedAt());
-        Integer countBelow = this.messageRepository.countBelowMessagesReplies(messageId, messageList.get(0).getCreatedAt());
-        int countOther = Math.max(0, countAbove + countBelow - paging);
-        CenteredMetadata centeredMetadata = new CenteredMetadata();
-        centeredMetadata.setCountOther(countOther);
-        centeredMetadata.setCountAbove(countAbove);
-        centeredMetadata.setCountBelow(countBelow);
+        int countAbove = 0;
+        int countBelow = 0;
+
+        if (!messageList.isEmpty()) {
+            countAbove = this.messageRepository.countAboveMessagesReplies(
+                    messageId, messageList.get(messageList.size() - 1).getCreatedAt()
+            );
+            countBelow = this.messageRepository.countBelowMessagesReplies(
+                    messageId, messageList.get(0).getCreatedAt()
+            );
+        }
+
+
+        CenteredMetadata centeredMetadata = buildCenteredMetadata(countAbove, countBelow);
 
         return SuccessResponseWithCenteredMetadata.builder()
                 .data(messageResponses)
@@ -620,6 +648,7 @@ public class ChatServiceImpl implements ChatService {
                 .metadata(centeredMetadata)
                 .build();
     }
+
 
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(
@@ -643,32 +672,24 @@ public class ChatServiceImpl implements ChatService {
                 paging
         );
 
+        if (messageList.isEmpty()) {
+            return SuccessResponseWithCenteredMetadata.builder()
+                    .data(Collections.emptyList())
+                    .status(RESPONSE_STATUS.SUCCESS.toString())
+                    .metadata(new CenteredMetadata(0, 0, 0))
+                    .build();
+        }
+
         List<MessageResponse> messageResponses = messageList.stream()
                 .map(this::mapMessageToMessageResponse)
                 .toList();
 
-        if (messageList.isEmpty()) {
-            CenteredMetadata emptyMetadata = new CenteredMetadata(0, 0, 0);
-            return SuccessResponseWithCenteredMetadata.builder()
-                    .data(Collections.emptyList())
-                    .status(RESPONSE_STATUS.SUCCESS.toString())
-                    .metadata(emptyMetadata)
-                    .build();
-        }
+        int countAbove = this.messageRepository.countAboveMessagesReplies(
+                parentId, centerMessage.getCreatedAt());
+        int countBelow = this.messageRepository.countBelowMessagesReplies(
+                parentId, centerMessage.getCreatedAt());
 
-        Integer countAbove = this.messageRepository.countAboveMessagesReplies(
-                parentId,
-                centerMessage.getCreatedAt()
-        );
-        Integer countBelow = this.messageRepository.countBelowMessagesReplies(
-                parentId,
-                centerMessage.getCreatedAt()
-        );
-        int countOther = Math.max(0, countAbove + countBelow - paging);
-        CenteredMetadata metadata = new CenteredMetadata();
-        metadata.setCountOther(countOther);
-        metadata.setCountAbove(countAbove);
-        metadata.setCountBelow(countBelow);
+        CenteredMetadata metadata = buildCenteredMetadata(countAbove, countBelow);
 
         return SuccessResponseWithCenteredMetadata.builder()
                 .data(messageResponses)
@@ -677,6 +698,13 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
+    private CenteredMetadata buildCenteredMetadata(int countAbove, int countBelow) {
+        CenteredMetadata metadata = new CenteredMetadata();
+        metadata.setCountAbove(countAbove);
+        metadata.setCountBelow(countBelow);
+        metadata.setCountOther(countAbove + countBelow);
+        return metadata;
+    }
 
     @Override
     @Transactional
