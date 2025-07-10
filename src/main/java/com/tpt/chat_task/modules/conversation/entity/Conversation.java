@@ -37,7 +37,7 @@ public class Conversation {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, name = "types", length = 20)
+    @Column(nullable = false, name = "type", length = 20)
     @NotNull(message = "Conversation type cannot be null")
     private CONVERSATION_TYPE type;
 
