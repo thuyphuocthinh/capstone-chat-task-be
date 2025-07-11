@@ -156,7 +156,6 @@ public interface MessageRepository extends JpaRepository<Message, String> {
             @Param("keyword") String keyword
     );
 
-
     @Query(value = """
         SELECT DISTINCT m.*
         FROM messages m

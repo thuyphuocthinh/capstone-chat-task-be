@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.conversation.repository;
 
+import com.tpt.chat_task.modules.conversation.dto.response.UnreadCountDTO;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
@@ -68,4 +69,24 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
         WHERE ms.is_seen = FALSE AND ms.user_id = :userId AND m.conversation_id = :conversationId
     """, nativeQuery = true)
     int countUnreadByConversationId(@Param("conversationId") String conversationId, @Param("userId") String userId);
+
+    @Query("""
+        SELECT m.conversation.id AS conversationId, COUNT(m) AS unreadCount
+        FROM MessageSeen ms
+        JOIN ms.message m
+        WHERE m.conversation.id IN :conversationIds AND ms.user.id = :userId AND ms.isSeen = false
+        GROUP BY m.conversation.id
+    """)
+    List<UnreadCountDTO> countUnreadMessagesForConversations(@Param("conversationIds") List<String> conversationIds, @Param("userId") String userId);
+
+    @Query(value = """
+        SELECT m FROM messages m
+        INNER JOIN (
+                SELECT conversation_id, MAX(created_at) AS max_created_at
+                FROM messages
+                WHERE conversation_id IN (:conversationIds)
+                GROUP BY conversation_id
+        ) latest ON m.conversation_id = latest.conversation_id AND m.created_at = latest.max_created_at
+    """, nativeQuery = true)
+    List<Message> findListOfLatestMessagesByConversationIds(@Param("conversationIds") List<String> conversationIds);
 }
