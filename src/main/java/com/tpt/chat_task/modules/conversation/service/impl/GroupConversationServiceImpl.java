@@ -14,6 +14,7 @@ import com.tpt.chat_task.modules.conversation.dto.request.CreateGroupConversatio
 import com.tpt.chat_task.modules.conversation.dto.request.UpdateGroupConversationRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.ConversationMemberResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.GroupConversationDetailResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.UnreadCountDTO;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_MEMBER_ROLE;
@@ -42,6 +43,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -157,14 +161,27 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Page<Conversation> conversationPage = this.conversationRepository.findConversationsByUserIdAndType(userId, CONVERSATION_TYPE.GROUP, pageable);
         List<Conversation> conversations = conversationPage.getContent();
 
+        List<String> conversationIds = conversations.stream().map(Conversation::getId).collect(Collectors.toList());
+        List<Message> latestMessages = conversationRepository.findListOfLatestMessagesByConversationIds(conversationIds);
+        List<UnreadCountDTO> unreadCounts = conversationRepository.countUnreadMessagesForConversations(conversationIds, userId);
+
+        // Convert to map for O(1) lookup
+        Map<String, Message> latestMessageMap = latestMessages.stream()
+                .collect(Collectors.toMap(m -> m.getConversation().getId(), Function.identity()));
+
+        Map<String, Integer> unreadCountMap = unreadCounts.stream()
+                .collect(Collectors.toMap(UnreadCountDTO::getConversationId, UnreadCountDTO::getUnreadCount));
+
+
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
-            Message latestMessage = conversationRepository
-                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
+            Message latestMessage = latestMessageMap.get(conversation.getId());
+            Integer countUnread = unreadCountMap.getOrDefault(conversation.getId(), 0);
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
                     .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
+                    .countUnread(countUnread)
                     .name(conversation.getName())
                     .build();
         }).toList();
@@ -192,14 +209,27 @@ public class GroupConversationServiceImpl implements GroupConversationService {
         Page<Conversation> conversationPage = this.conversationRepository.searchByUserIdAndName(userId, name, CONVERSATION_TYPE.GROUP, pageable);
         List<Conversation> conversations = conversationPage.getContent();
 
+        List<String> conversationIds = conversations.stream().map(Conversation::getId).collect(Collectors.toList());
+        List<Message> latestMessages = conversationRepository.findListOfLatestMessagesByConversationIds(conversationIds);
+        List<UnreadCountDTO> unreadCounts = conversationRepository.countUnreadMessagesForConversations(conversationIds, userId);
+
+        // Convert to map for O(1) lookup
+        Map<String, Message> latestMessageMap = latestMessages.stream()
+                .collect(Collectors.toMap(m -> m.getConversation().getId(), Function.identity()));
+
+        Map<String, Integer> unreadCountMap = unreadCounts.stream()
+                .collect(Collectors.toMap(UnreadCountDTO::getConversationId, UnreadCountDTO::getUnreadCount));
+
+
         List<GroupConversationDetailResponse> conversationDetailResponseList = conversations.stream().map(conversation -> {
-            Message latestMessage = conversationRepository
-                    .findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
+            Message latestMessage = latestMessageMap.get(conversation.getId());
+            Integer countUnread = unreadCountMap.getOrDefault(conversation.getId(), 0);
             return GroupConversationDetailResponse.builder()
                     .id(conversation.getId())
                     .isPinned(conversation.isPinned())
                     .type(conversation.getType().name())
                     .message(latestMessage != null ? this.chatService.mapMessageToMessageResponse(latestMessage) : null)
+                    .countUnread(countUnread)
                     .name(conversation.getName())
                     .build();
         }).toList();

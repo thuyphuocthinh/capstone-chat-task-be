@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /*
@@ -97,13 +98,33 @@ public class ChatServiceImpl implements ChatService {
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-        List<MessageElementRequest> elements = request.getElements();
         List<MultipartFile> files = request.getFiles();
         Message message = buildAndSaveMessage(request, sender, files, conversation);
         MessageResponse response = this.mapMessageToMessageResponse(message);
         pushToQueueAsyncSendMessageAction(request, conversationId, response, PushNotificationAction.SEND_MESSAGE);
         return response;
     }
+
+    private List<MessageSeen> buildMessageSeen(Message message, User sender, List<User> userList) {
+        return Stream.concat(
+                Stream.of(MessageSeen.builder()
+                        .id(new MessageUserId(sender.getId(), message.getId()))
+                        .user(sender)
+                        .message(message)
+                        .isSeen(true)
+                        .build()
+                ),
+                userList.stream()
+                        .filter(user -> !user.getId().equals(sender.getId()))
+                        .map(user -> MessageSeen.builder()
+                                .id(new MessageUserId(user.getId(), message.getId()))
+                                .user(user)
+                                .message(message)
+                                .isSeen(false)
+                                .build())
+        ).toList();
+    }
+
 
     private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files, Conversation conversation) throws IOException {
         Message message = new Message();
@@ -119,7 +140,9 @@ public class ChatServiceImpl implements ChatService {
         message.setConversation(conversation);
         message.setUser(sender);
 
-        // Build elements trước
+        List<MessageSeen> messageSeens = this.buildMessageSeen(message, sender, conversation.getUsers());
+        message.setMessageSeen(messageSeens);
+
         List<MessageElement> messageElements = this.buildMessageElements(request.getElements(), message);
         message.setMessageElements(messageElements);
 
@@ -587,7 +610,6 @@ public class ChatServiceImpl implements ChatService {
                 .metadata(centeredMetadata)
                 .build();
     }
-
 
     @Override
     @Transactional

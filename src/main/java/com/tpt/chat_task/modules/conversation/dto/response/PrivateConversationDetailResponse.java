@@ -18,4 +18,5 @@ public class PrivateConversationDetailResponse {
     private String type;
     private List<ConversationMemberResponse> members;
     private MessageResponse message;
+    private int countUnread;
 }
