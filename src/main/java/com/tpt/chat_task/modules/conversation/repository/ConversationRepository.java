@@ -4,13 +4,11 @@ import com.tpt.chat_task.modules.conversation.dto.response.UnreadCountDTO;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
-import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -80,13 +78,13 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
     List<UnreadCountDTO> countUnreadMessagesForConversations(@Param("conversationIds") List<String> conversationIds, @Param("userId") String userId);
 
     @Query(value = """
-        SELECT m FROM messages m
-        INNER JOIN (
-                SELECT conversation_id, MAX(created_at) AS max_created_at
-                FROM messages
-                WHERE conversation_id IN (:conversationIds)
-                GROUP BY conversation_id
-        ) latest ON m.conversation_id = latest.conversation_id AND m.created_at = latest.max_created_at
+        SELECT * FROM messages m
+        WHERE m.conversation_id IN :conversationIds
+        AND m.created_at = (
+            SELECT MAX(m2.created_at)
+            FROM messages m2
+            WHERE m2.conversation_id = m.conversation_id
+        )
     """, nativeQuery = true)
     List<Message> findListOfLatestMessagesByConversationIds(@Param("conversationIds") List<String> conversationIds);
 }
