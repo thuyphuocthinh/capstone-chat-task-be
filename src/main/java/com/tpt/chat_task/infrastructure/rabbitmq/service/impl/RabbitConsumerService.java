@@ -19,6 +19,8 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+
 @Service
 @Log4j2
 @RequiredArgsConstructor
@@ -37,8 +39,12 @@ public class RabbitConsumerService {
         String queueName = message.getMessageProperties().getConsumerQueue();
         log.info("Received general event message from rabbit queue : {}", queueName);
         try {
-            MessageResponse payload = objectMapper.readValue((JsonParser) rabbitMQRequest.getPayload(), MessageResponse.class);
+            MessageResponse payload = objectMapper.convertValue(
+                    rabbitMQRequest.getPayload(),
+                    MessageResponse.class
+            );
             String[] splits = queueName.split("\\.");
+            log.info("splits : {}", Arrays.toString(splits));
             if(splits.length == 3) {
                 String userId = splits[2];
                 WebSocketResponse webSocketResponse = WebSocketResponse.builder()
@@ -47,10 +53,11 @@ public class RabbitConsumerService {
                         .type(rabbitMQRequest.getPushNotificationType())
                         .build();
                 simpMessagingTemplate.convertAndSendToUser(
-                        WebSocketSchema.getWebsocketNotificationQueue(),
                         userId,
+                        WebSocketSchema.getWebsocketNotificationQueue(),
                         webSocketResponse
                 );
+                log.info("Sent websocket notification : {}", webSocketResponse.toString());
             }
         } catch (Exception e) {
             log.error("Error on running chat listener");

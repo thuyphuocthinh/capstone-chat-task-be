@@ -5,6 +5,7 @@ import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.service.CommentEventHandler;
 import com.tpt.chat_task.infrastructure.rabbitmq.service.RabbitMQService;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
+import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
@@ -81,8 +82,8 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         String userId = rabbitMQRequest.getUserId();
         if(userId != null) {
             this.simpMessagingTemplate.convertAndSendToUser(
-                    "/queue/notification",
                     userId,
+                    WebSocketSchema.getWebsocketNotificationQueue(),
                     rabbitMQRequest.getPayload()
             );
         }

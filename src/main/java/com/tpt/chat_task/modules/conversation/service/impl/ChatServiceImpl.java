@@ -125,7 +125,6 @@ public class ChatServiceImpl implements ChatService {
         ).toList();
     }
 
-
     private Message buildAndSaveMessage(MessageRequest request, User sender, List<MultipartFile> files, Conversation conversation) throws IOException {
         Message message = new Message();
         if (files != null && !files.isEmpty()) {
@@ -150,23 +149,55 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private void pushToQueueAsyncSendMessageAction(MessageRequest request, String conversationId, MessageResponse response, String action) {
-        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
-        String exchangeName = conversation.getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
+        Conversation conversation = this.conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+
+        String exchangeName = conversation.getType() == CONVERSATION_TYPE.PRIVATE
+                ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE
+                : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
+
         executorService.submit(() -> {
-            if (checkMentionAll(request.getElements())) {
-                rabbitTemplate.convertAndSend(
-                        exchangeName,
-                        RabbitMQSchema.getGroupChatRoutingKey(conversationId),
-                        buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), response, action)
-                );
-            } else {
-                extractUserIds(request.getElements()).forEach(id -> {
-                    rabbitTemplate.convertAndSend(
-                            exchangeName,
-                            RabbitMQSchema.getGroupChatRoutingKey(conversationId),
-                            buildRabbitRequest(RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id), response, action)
-                    );
-                });
+            try {
+                if (checkMentionAll(request.getElements())) {
+                    try {
+                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        String realRoutingKey = RabbitMQSchema.getGroupChatAllRoutingKey(conversationId);
+                        Object payload = buildRabbitRequest(realRoutingKey, response, action);
+
+                        rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
+                        log.info("✅ Sent '@all' message to [{}] with routingKey [{}]", exchangeName, routingKey);
+                    } catch (Exception e) {
+                        log.error("❌ Error sending '@all' message to RabbitMQ", e);
+                    }
+
+                } else if (!this.extractUserIds(request.getElements()).isEmpty()) {
+                    List<String> userIds = extractUserIds(request.getElements());
+                    for (String id : userIds) {
+                        try {
+                            String routingKey = RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
+                            Object payload = buildRabbitRequest(routingKey, response, action);
+
+                            rabbitTemplate.convertAndSend(exchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId), payload);
+                            log.info("✅ Sent mention message to [{}] with routingKey [{}] (userId: {})", exchangeName, routingKey, id);
+                        } catch (Exception e) {
+                            log.error("❌ Error sending mention message for userId [{}]", id, e);
+                        }
+                    }
+
+                } else {
+                    try {
+                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        Object payload = buildRabbitRequest(routingKey, response, action);
+
+                        log.info("📤 Sending message to conversation: {}", conversationId);
+                        rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
+                        log.info("✅ Sent message to exchange [{}] with routingKey [{}]", exchangeName, routingKey);
+                    } catch (Exception e) {
+                        log.error("❌ Error sending default message to RabbitMQ", e);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("❌ Error in pushToQueueAsyncSendMessageAction logic", e);
             }
         });
     }
@@ -270,6 +301,10 @@ public class ChatServiceImpl implements ChatService {
                 .metadata(metadata)
                 .data(messageResponses)
                 .build();
+    }
+
+    private List<String> extractUserIdsFromConversation(Conversation conversation) {
+        return conversation.getUsers().stream().map(User::getId).collect(Collectors.toList());
     }
 
     private List<Message> getRepliesMessage(String messageId){
