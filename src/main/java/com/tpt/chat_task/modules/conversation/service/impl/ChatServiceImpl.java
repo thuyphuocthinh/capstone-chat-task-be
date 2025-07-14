@@ -24,6 +24,7 @@ import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.*;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.IconService;
+import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 import com.tpt.chat_task.modules.resource.repository.ResourceRepository;
@@ -161,13 +162,13 @@ public class ChatServiceImpl implements ChatService {
                 if (checkMentionAll(request.getElements())) {
                     try {
                         String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
-                        String realRoutingKey = RabbitMQSchema.getGroupChatAllRoutingKey(conversationId);
-                        Object payload = buildRabbitRequest(realRoutingKey, response, action);
-
+                        RabbitMQRequest payload = buildRabbitRequest(conversationId, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
-                        log.info("✅ Sent '@all' message to [{}] with routingKey [{}]", exchangeName, routingKey);
+                        log.info("Sent '@all' message to [{}] with routingKey [{}]", exchangeName, routingKey);
+                        List<String> allUserIds = this.extractUserIdsFromConversation(conversation);
+                        this.pushToNotificationQueueAndSend(allUserIds, response);
                     } catch (Exception e) {
-                        log.error("❌ Error sending '@all' message to RabbitMQ", e);
+                        log.error("Error sending '@all' message to RabbitMQ", e);
                     }
 
                 } else if (!this.extractUserIds(request.getElements()).isEmpty()) {
@@ -175,40 +176,55 @@ public class ChatServiceImpl implements ChatService {
                     for (String id : userIds) {
                         try {
                             String routingKey = RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
-                            Object payload = buildRabbitRequest(routingKey, response, action);
-
-                            rabbitTemplate.convertAndSend(exchangeName, RabbitMQSchema.getGroupChatRoutingKey(conversationId), payload);
-                            log.info("✅ Sent mention message to [{}] with routingKey [{}] (userId: {})", exchangeName, routingKey, id);
+                            RabbitMQRequest payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
+                            rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
+                            log.info("Sent mention message to [{}] with routingKey [{}] (userId: {})", exchangeName, routingKey, id);
                         } catch (Exception e) {
-                            log.error("❌ Error sending mention message for userId [{}]", id, e);
+                            log.error("Error sending mention message for userId [{}]", id, e);
                         }
                     }
-
+                    this.pushToNotificationQueueAndSend(userIds, response);
                 } else {
                     try {
                         String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
-                        Object payload = buildRabbitRequest(routingKey, response, action);
-
-                        log.info("📤 Sending message to conversation: {}", conversationId);
+                        Object payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
+                        log.info("Sending message to conversation: {}", conversationId);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
-                        log.info("✅ Sent message to exchange [{}] with routingKey [{}]", exchangeName, routingKey);
+                        log.info("Sent message to exchange [{}] with routingKey [{}]", exchangeName, routingKey);
                     } catch (Exception e) {
-                        log.error("❌ Error sending default message to RabbitMQ", e);
+                        log.error("Error sending default message to RabbitMQ", e);
                     }
                 }
             } catch (Exception e) {
-                log.error("❌ Error in pushToQueueAsyncSendMessageAction logic", e);
+                log.error("Error in pushToQueueAsyncSendMessageAction logic", e);
             }
         });
     }
 
-    private RabbitMQRequest buildRabbitRequest(String routingKey, MessageResponse response, String action) {
+    private void pushToNotificationQueueAndSend(List<String> allUserIds, MessageResponse response) {
+        executorService.submit(() -> {
+            try {
+                RabbitMQRequest payload = buildRabbitRequest(RabbitMQSchema.NOTIFICATION_ROUTING_KEY, response, null, null);
+                for (String userId : allUserIds) {
+                    payload.setUserId(userId);
+                    payload.setPushNotificationType(PUSH_NOTIFICATION_TYPE.NOTIFICATION);
+                    payload.setPushNotificationAction(PushNotificationAction.NEW_NOTIFICATION);
+                    rabbitTemplate.convertAndSend(RabbitMQSchema.NOTIFICATION_EXCHANGE, RabbitMQSchema.NOTIFICATION_ROUTING_KEY, payload);
+                }
+                log.info("Sent message to notification queue");
+            } catch (Exception e) {
+                log.error("Error in pushToNotificationQueueAndSend logic", e);
+            }
+        });
+    }
+
+    private RabbitMQRequest buildRabbitRequest(String routingKey, MessageResponse response, String action, PUSH_NOTIFICATION_TYPE pushNotificationType) {
         return RabbitMQRequest.builder()
                 .exchangeType(EXCHANGE_TYPE.TOPIC)
                 .routingKey(routingKey)
                 .payload(response)
                 .pushNotificationAction(action)
-                .pushNotificationType(PUSH_NOTIFICATION_TYPE.MESSAGE)
+                .pushNotificationType(pushNotificationType)
                 .build();
     }
 
@@ -571,7 +587,8 @@ public class ChatServiceImpl implements ChatService {
                 buildRabbitRequest(
                         RabbitMQSchema.getGroupChatAllRoutingKey(conversationId),
                         response,
-                        PushNotificationAction.DELETE_MESSAGE
+                        PushNotificationAction.DELETE_MESSAGE,
+                        PUSH_NOTIFICATION_TYPE.MESSAGE
                 )
         );
         return RESPONSE_STATUS.SUCCESS.toString();
@@ -613,7 +630,6 @@ public class ChatServiceImpl implements ChatService {
                 .metadata(centeredMetadata)
                 .build();
     }
-
 
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListOfMessagesAboveOrBelow(String conversationId, String messageId, Integer paging, boolean isAbove) throws NotFoundException {
@@ -706,7 +722,6 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
-
     @Override
     public SuccessResponseWithCenteredMetadata<?> getListRepliesOfMessageAboveOrBelow(
             String parentId,
@@ -777,14 +792,14 @@ public class ChatServiceImpl implements ChatService {
             rabbitTemplate.convertAndSend(
                     exchangeName,
                     RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
-                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.UNREACT_MESSAGE)
+                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.UNREACT_MESSAGE, PUSH_NOTIFICATION_TYPE.MESSAGE)
             );
             // push queue to remove notification for sender of the message you unreact to
         } else {
             rabbitTemplate.convertAndSend(
                     exchangeName,
                     RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
-                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE)
+                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE, PUSH_NOTIFICATION_TYPE.MESSAGE)
             );
             // push queue to save notification for sender of the message you react to
             MessageUserIconId id = new MessageUserIconId();
