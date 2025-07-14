@@ -117,9 +117,14 @@ public class AuthServiceImpl implements AuthService {
         log.info("Login::AccessToken: {}", accessToken);
         log.info("Login::RefreshToken: {}", refreshToken);
 
-        String loginExchange = RabbitMQSchema.LOGIN_EXCHANGE;
-        String loginRoutingKey = RabbitMQSchema.LOGIN_ROUTING_KEY;
-        this.rabbitTemplate.convertAndSend(loginExchange, loginRoutingKey, user.getId());
+        try {
+            String loginExchange = RabbitMQSchema.LOGIN_EXCHANGE;
+            String loginRoutingKey = RabbitMQSchema.LOGIN_ROUTING_KEY;
+            this.rabbitTemplate.convertAndSend(loginExchange, loginRoutingKey, user.getId());
+            log.info("Sent to login queue");
+        } catch (Exception e) {
+            log.error("Error sending to login queue: {}", e.getMessage());
+        }
 
         return LoginResponse.builder()
                 .accessToken(accessToken)

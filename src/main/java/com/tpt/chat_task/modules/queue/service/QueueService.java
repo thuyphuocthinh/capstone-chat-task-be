@@ -8,7 +8,7 @@ import org.apache.coyote.BadRequestException;
 import java.util.List;
 
 public interface QueueService {
-    public QueueResponse addNewQueue(QueueRequest queueRequest) throws BadRequestException;
-    public void removeQueue(String id) throws NotFoundException;
+    public void addNewQueue(QueueRequest queueRequest) throws BadRequestException;
+    public void removeQueue(String queueName) throws NotFoundException, BadRequestException;
     public List<QueueResponse> getListQueuesByListenerId(String listenerId) throws NotFoundException;
 }

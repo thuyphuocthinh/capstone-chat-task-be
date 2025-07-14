@@ -13,6 +13,7 @@ import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -76,7 +77,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "login_queue", concurrency = "2")
-    public void receiveLoginEvent(String userId, Message message) {
+    public void receiveLoginEvent(String userId, Message message) throws BadRequestException {
         log.info("Received login event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         commonEventHandler.handleLoginEvent(userId);
     }
@@ -102,7 +103,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "conversation_add_member_queue", concurrency = "2")
-    public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
+    public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
         log.info("Received add member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         ConversationMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), ConversationMemberRequest.class);
         if(payload.getType() == CONVERSATION_TYPE.PRIVATE) {
@@ -115,7 +116,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "conversation_delete_member_queue", concurrency = "2")
-    public void receiveDeleteMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
+    public void receiveDeleteMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
         log.info("Received delete member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         ConversationMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), ConversationMemberRequest.class);
         this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getUserId(), payload.getConversationId());

@@ -22,14 +22,13 @@ import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
 
 @Configuration
-@EnableRabbit
 public class RabbitMQConfig implements RabbitListenerConfigurer {
 
     @Value("${spring.rabbitmq.login.queue}")
-    private String loginQueue;
+    private String loginQueueName;
 
     @Value("${spring.rabbitmq.login.exchange}")
-    private String loginExchange;
+    private String loginExchangeName;
 
     @Value("${spring.rabbitmq.login.routing-key}")
     private String loginRoutingKey;
@@ -117,12 +116,12 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
 
     @Bean
     public DirectExchange loginExchange() {
-        return new DirectExchange(loginExchange);
+        return new DirectExchange(loginExchangeName);
     }
 
     @Bean
     public Queue loginQueue() {
-        return new Queue(loginQueue, true);
+        return new Queue(loginQueueName, true);
     }
 
     @Bean

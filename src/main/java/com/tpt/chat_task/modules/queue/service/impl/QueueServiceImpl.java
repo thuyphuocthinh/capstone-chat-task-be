@@ -8,6 +8,7 @@ import com.tpt.chat_task.modules.queue.entity.Queue;
 import com.tpt.chat_task.modules.queue.repository.QueueRepository;
 import com.tpt.chat_task.modules.queue.service.QueueService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
@@ -15,13 +16,20 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class QueueServiceImpl implements QueueService {
     private final QueueRepository queueRepository;
 
     @Override
-    public QueueResponse addNewQueue(QueueRequest queueRequest) throws BadRequestException {
-        if(queueRepository.existsByQueueName(queueRequest.getQueueName())) {
-            throw new BadRequestException(QueueError.QUEUE_NAME_ALREADY_EXISTS);
+    public void addNewQueue(QueueRequest queueRequest) throws BadRequestException {
+        if(queueRepository.existsByQueueNameAndExchangeNameAndRoutingKey(
+                queueRequest.getQueueName(),
+                queueRequest.getExchangeName(),
+                queueRequest.getRoutingKey(),
+                queueRequest.getListenerId())
+        ) {
+            log.error("Queue already exists: {}", QueueError.QUEUE_ALREADY_EXISTS);
+            return;
         }
         Queue queue = Queue.builder()
                 .queueName(queueRequest.getQueueName())
@@ -29,20 +37,16 @@ public class QueueServiceImpl implements QueueService {
                 .exchangeName(queueRequest.getExchangeName())
                 .routingKey(queueRequest.getRoutingKey())
                 .build();
-        queue = queueRepository.save(queue);
-        return QueueResponse.builder()
-                .id(queue.getId())
-                .queueName(queue.getQueueName())
-                .listenerId(queue.getListenerId())
-                .exchangeName(queue.getExchangeName())
-                .routingKey(queue.getRoutingKey())
-                .build();
+        this.queueRepository.save(queue);
     }
 
     @Override
-    public void removeQueue(String id) throws NotFoundException {
-        this.queueRepository.findById(id).orElseThrow(() -> new NotFoundException(QueueError.QUEUE_DOES_NOT_EXIST));
-        queueRepository.deleteById(id);
+    public void removeQueue(String queueName) throws NotFoundException, BadRequestException {
+        if(!queueRepository.existsByQueueName(queueName)) {
+            log.error("Queue does not exist: {}", QueueError.QUEUE_DOES_NOT_EXIST);
+            return;
+        }
+        queueRepository.deleteAllByQueueName(queueName);
     }
 
     @Override
