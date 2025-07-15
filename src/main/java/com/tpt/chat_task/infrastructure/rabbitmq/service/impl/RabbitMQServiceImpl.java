@@ -114,9 +114,9 @@ public class RabbitMQServiceImpl implements RabbitMQService {
     @Override
     public void restoreQueuesByListener(String listenerId) {
         List<QueueResponse> queueResponses = this.queueService.getListQueuesByListenerId(listenerId);
+        log.info("queues responses: {}", queueResponses.toString());
         queueResponses.forEach(queue -> {
             String queueName = queue.getQueueName();
-
             if (!checkQueueExistOnListener(listenerId, queueName)) {
                 this.getRabbitListenerContainer(listenerId).addQueueNames(queueName);
                 log.info("Bound queue [{}] to listener [{}]", queueName, listenerId);
