@@ -4,6 +4,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -24,10 +25,10 @@ import org.springframework.messaging.handler.annotation.support.DefaultMessageHa
 public class RabbitMQConfig implements RabbitListenerConfigurer {
 
     @Value("${spring.rabbitmq.login.queue}")
-    private String loginQueue;
+    private String loginQueueName;
 
     @Value("${spring.rabbitmq.login.exchange}")
-    private String loginExchange;
+    private String loginExchangeName;
 
     @Value("${spring.rabbitmq.login.routing-key}")
     private String loginRoutingKey;
@@ -115,12 +116,12 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
 
     @Bean
     public DirectExchange loginExchange() {
-        return new DirectExchange(loginExchange);
+        return new DirectExchange(loginExchangeName);
     }
 
     @Bean
     public Queue loginQueue() {
-        return new Queue(loginQueue, true);
+        return new Queue(loginQueueName, true);
     }
 
     @Bean

@@ -5,12 +5,14 @@ import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.service.CommentEventHandler;
 import com.tpt.chat_task.infrastructure.rabbitmq.service.RabbitMQService;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
+import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -30,7 +32,7 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
     @Value("${spring.rabbitmq.listener.id}")
     private String listenerId;
 
-    public void handleLoginEvent(String userId) {
+    public void handleLoginEvent(String userId) throws BadRequestException {
         String queueName = RabbitMQSchema.getQueueName(userId);
         String groupExchangeName = RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         String privateExchangeName = RabbitMQSchema.PRIVATE_CHAT_EXCHANGE;
@@ -54,7 +56,7 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         }
     }
 
-    public void handelAddMemberConversationEvent(String userId, String conversationId) {
+    public void handelAddMemberConversationEvent(String userId, String conversationId) throws BadRequestException {
         Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         String queueName = RabbitMQSchema.getQueueName(userId);
         if(conversation.getType() == CONVERSATION_TYPE.GROUP) {
@@ -70,7 +72,7 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         }
     }
 
-    public void handelDeleteMemberConversationEvent(String userId, String conversationId) {
+    public void handelDeleteMemberConversationEvent(String userId, String conversationId) throws BadRequestException {
         this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         String queueName = RabbitMQSchema.getQueueName(userId);
         this.rabbitMQService.removeQueueFromListener(listenerId, queueName);
@@ -81,8 +83,8 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
         String userId = rabbitMQRequest.getUserId();
         if(userId != null) {
             this.simpMessagingTemplate.convertAndSendToUser(
-                    "/queue/notification",
                     userId,
+                    WebSocketSchema.getWebsocketNotificationQueue(),
                     rabbitMQRequest.getPayload()
             );
         }

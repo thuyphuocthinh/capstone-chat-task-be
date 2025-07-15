@@ -3,14 +3,11 @@ package com.tpt.chat_task.infrastructure.rabbitmq.utils;
 import org.springframework.beans.factory.annotation.Value;
 
 public class RabbitMQSchema {
-    @Value("${spring.rabbitmq.login.exchange}")
-    public static String LOGIN_EXCHANGE;
+    public static String LOGIN_EXCHANGE = "login_exchange";
 
-    @Value("${spring.rabbitmq.login.queue}")
-    public static String LOGIN_QUEUE;
+    public static String LOGIN_QUEUE = "login_queue";
 
-    @Value("${spring.rabbitmq.login.routing-key}")
-    public static String LOGIN_ROUTING_KEY;
+    public static String LOGIN_ROUTING_KEY = "login_routing_key";
 
     public static final String GROUP_CHAT_EXCHANGE = "group_chat_exchange";
 

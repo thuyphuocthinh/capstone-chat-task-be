@@ -1,6 +1,5 @@
 package com.tpt.chat_task.infrastructure.rabbitmq.service.impl;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
@@ -14,10 +13,13 @@ import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
 
 @Service
 @Log4j2
@@ -37,8 +39,12 @@ public class RabbitConsumerService {
         String queueName = message.getMessageProperties().getConsumerQueue();
         log.info("Received general event message from rabbit queue : {}", queueName);
         try {
-            MessageResponse payload = objectMapper.readValue((JsonParser) rabbitMQRequest.getPayload(), MessageResponse.class);
+            MessageResponse payload = objectMapper.convertValue(
+                    rabbitMQRequest.getPayload(),
+                    MessageResponse.class
+            );
             String[] splits = queueName.split("\\.");
+            log.info("splits : {}", Arrays.toString(splits));
             if(splits.length == 3) {
                 String userId = splits[2];
                 WebSocketResponse webSocketResponse = WebSocketResponse.builder()
@@ -47,10 +53,11 @@ public class RabbitConsumerService {
                         .type(rabbitMQRequest.getPushNotificationType())
                         .build();
                 simpMessagingTemplate.convertAndSendToUser(
-                        WebSocketSchema.getWebsocketNotificationQueue(),
                         userId,
+                        WebSocketSchema.getWebsocketNotificationQueue(),
                         webSocketResponse
                 );
+                log.info("Sent websocket notification : {}", webSocketResponse.toString());
             }
         } catch (Exception e) {
             log.error("Error on running chat listener");
@@ -70,7 +77,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "login_queue", concurrency = "2")
-    public void receiveLoginEvent(String userId, Message message) {
+    public void receiveLoginEvent(String userId, Message message) throws BadRequestException {
         log.info("Received login event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         commonEventHandler.handleLoginEvent(userId);
     }
@@ -96,7 +103,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "conversation_add_member_queue", concurrency = "2")
-    public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
+    public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
         log.info("Received add member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         ConversationMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), ConversationMemberRequest.class);
         if(payload.getType() == CONVERSATION_TYPE.PRIVATE) {
@@ -109,7 +116,7 @@ public class RabbitConsumerService {
     }
 
     @RabbitListener(queues = "conversation_delete_member_queue", concurrency = "2")
-    public void receiveDeleteMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) {
+    public void receiveDeleteMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
         log.info("Received delete member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         ConversationMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), ConversationMemberRequest.class);
         this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getUserId(), payload.getConversationId());
