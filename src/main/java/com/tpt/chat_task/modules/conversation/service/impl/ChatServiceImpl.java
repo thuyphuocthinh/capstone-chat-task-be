@@ -161,7 +161,9 @@ public class ChatServiceImpl implements ChatService {
             try {
                 if (checkMentionAll(request.getElements())) {
                     try {
-                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                RabbitMQSchema.getPrivateChatRoutingKey(conversationId) :
+                                RabbitMQSchema.getGroupChatRoutingKey(conversationId);
                         RabbitMQRequest payload = buildRabbitRequest(conversationId, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
                         log.info("Sent '@all' message to [{}] with routingKey [{}]", exchangeName, routingKey);
@@ -175,7 +177,9 @@ public class ChatServiceImpl implements ChatService {
                     List<String> userIds = extractUserIds(request.getElements());
                     for (String id : userIds) {
                         try {
-                            String routingKey = RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
+                            String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                    RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, id) :
+                                    RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
                             RabbitMQRequest payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                             rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
                             log.info("Sent mention message to [{}] with routingKey [{}] (userId: {})", exchangeName, routingKey, id);
@@ -186,7 +190,9 @@ public class ChatServiceImpl implements ChatService {
                     this.pushToNotificationQueueAndSend(userIds, response);
                 } else {
                     try {
-                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                RabbitMQSchema.getPrivateChatRoutingKey(conversationId) :
+                                RabbitMQSchema.getGroupChatRoutingKey(conversationId);
                         Object payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                         log.info("Sending message to conversation: {}", conversationId);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
