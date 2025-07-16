@@ -98,7 +98,8 @@ public class RabbitConsumerService {
         if(title != null) {
             notificationRequest.setTitle(rabbitMQRequest.getNotificationTitle());
         }
-        notificationRequest.setData((JsonNode) rabbitMQRequest.getPayload());
+        JsonNode jsonPayload = objectMapper.convertValue(rabbitMQRequest.getPayload(), JsonNode.class);
+        notificationRequest.setData(jsonPayload);
         notificationService.saveNotification(notificationRequest);
     }
 

@@ -30,9 +30,9 @@ public class NotificationController {
         String accessToken = bearerToken.substring(7);
         String userId = this.jwtProvider.getIdFromToken(accessToken);
         if(type != null){
-            return ResponseEntity.ok(this.notificationService.getNotificationsByUserAndType(userId, type, page, paging));
+            return ResponseEntity.ok(this.notificationService.getNotificationsByUserAndType(userId, type, paging, page));
         } else {
-            return ResponseEntity.ok(this.notificationService.getNotificationsByUser(userId, page, paging));
+            return ResponseEntity.ok(this.notificationService.getNotificationsByUser(userId, paging, page));
         }
     }
 

@@ -15,11 +15,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface NotificationUserRepository extends JpaRepository<NotificationUser, NotificationUserId> {
 
-    @Query("SELECT nu.notification FROM NotificationUser nu WHERE nu.user.id = :userId")
-    Page<Notification> findWorkspacesByUserId(@Param("userId") String userId, Pageable pageable);
+    @Query("SELECT nu.notification FROM NotificationUser nu WHERE nu.id.userId = :userId")
+    Page<Notification> findNotificationsByUserId(@Param("userId") String userId, Pageable pageable);
 
-    @Query("SELECT nu.notification FROM NotificationUser nu JOIN Notification no ON no.id = nu.notification.id WHERE nu.user.id = :userId AND no.type =: type")
-    Page<Notification> findWorkspacesByUserIdAndType(@Param("userId") String userId, @Param("type")NOTIFICATION_TYPE type, Pageable pageable);
+    @Query("SELECT n FROM NotificationUser nu JOIN nu.notification n WHERE nu.id.userId = :userId AND n.type = :type")
+    Page<Notification> findNotificationsByUserIdAndType(@Param("userId") String userId, @Param("type") NOTIFICATION_TYPE type, Pageable pageable);
 
     @Modifying
     @Query("""

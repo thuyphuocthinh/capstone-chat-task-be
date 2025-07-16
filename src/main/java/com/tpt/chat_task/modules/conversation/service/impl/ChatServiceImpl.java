@@ -215,6 +215,8 @@ public class ChatServiceImpl implements ChatService {
                     payload.setUserId(userId);
                     payload.setPushNotificationType(PUSH_NOTIFICATION_TYPE.NOTIFICATION);
                     payload.setPushNotificationAction(PushNotificationAction.NEW_NOTIFICATION);
+                    payload.setNotificationTitle("New Notification");
+                    payload.setNotificationType(NOTIFICATION_TYPE.MENTION);
                     rabbitTemplate.convertAndSend(RabbitMQSchema.NOTIFICATION_EXCHANGE, RabbitMQSchema.NOTIFICATION_ROUTING_KEY, payload);
                 }
                 log.info("Sent message to notification queue");
