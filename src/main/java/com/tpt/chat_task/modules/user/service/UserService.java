@@ -22,5 +22,5 @@ public interface UserService {
     public String deleteUserById(String id) throws NotFoundException;
     public UserResponse changeRole(String id, ChangeRoleRequest request) throws NotFoundException;
     public UserResponse updateAvatar(String token, UpdateAvatarRequest request) throws NotFoundException;
-    // update avatar
+    public SuccessResponseWithMetadata<?> findUsersByEmail(String email, Integer page, Integer paging) throws NotFoundException;
 }

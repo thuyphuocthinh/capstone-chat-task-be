@@ -14,6 +14,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
 
   data:
     redis:
@@ -29,6 +30,29 @@ spring:
             client-id: 42246574521-f8gnomb39ndhkl5g2u21fn6ig6konvq1.apps.googleusercontent.com
             client-secret: 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
             redirect-uri: http://localhost:8080/api/v1/auth/google/callback
+
+  rabbitmq:
+    listener:
+      id: chat-listener
+    login:
+      queue: login_queue
+      exchange: login_exchange
+      routing-key: login_routing_key
+    notification:
+      queue: notification_queue
+      exchange: notification_exchange
+      routing-key: notification_routing_key
+      delete-queue: notification_delete_queue
+      delete-exchange: notification_delete_exchange
+      delete-routing-key: notification_delete_routing_key
+    conversations:
+      members:
+        add-queue: conversation_add_member_queue
+        add-exchange: conversation_add_member_exchange
+        add-routing-key: conversation_add_member_routing_key
+        delete-queue: conversation_delete_member_queue
+        delete-exchange: conversation_delete_member_exchange
+        delete-routing-key: conversation_delete_member_routing_key
 
   mail:
     host: smtp.gmail.com
@@ -56,6 +80,22 @@ cloudinary:
   cloud-name: dy0m9udjz
   api-key: 655763378773479
   api-secret: 7CheewENHiovwVJtdW4ZJLBNoW8
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+        orm:
+          jpa: DEBUG
+      hibernate:
+        SQL: DEBUG
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE
+
+
 
 
 

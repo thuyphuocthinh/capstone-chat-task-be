@@ -33,6 +33,9 @@ public class Resource {
     @Column(name = "link", length = 512)
     private String link;
 
+    @Column(name = "name", length = 512)
+    private String name;
+
     @Enumerated(EnumType.STRING)
     @NotNull(message = "Resource type cannot be null")
     @Column(name = "type", nullable = false, length = 10)
@@ -46,9 +49,7 @@ public class Resource {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ManyToMany(mappedBy = "resources")
-    private List<Message> messages = new ArrayList<>();
-
-    @ManyToMany(mappedBy = "resources")
-    private List<Task> tasks = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "message_id", nullable = false)
+    private Message message;
 }
