@@ -24,7 +24,11 @@ import com.tpt.chat_task.modules.conversation.enums.MESSAGE_ELEMENT_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.*;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
 import com.tpt.chat_task.modules.conversation.service.IconService;
+import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
+import com.tpt.chat_task.modules.notification.constant.NotificationError;
+import com.tpt.chat_task.modules.notification.entity.Notification;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
+import com.tpt.chat_task.modules.notification.repository.NotificationRepository;
 import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 import com.tpt.chat_task.modules.resource.repository.ResourceRepository;
@@ -92,6 +96,8 @@ public class ChatServiceImpl implements ChatService {
     private final MessageSeenRepository messageSeenRepository;
 
     private final WorkspaceRepository workspaceRepository;
+
+    private final NotificationRepository notificationRepository;
 
     @Override
     @Transactional
@@ -161,12 +167,14 @@ public class ChatServiceImpl implements ChatService {
             try {
                 if (checkMentionAll(request.getElements())) {
                     try {
-                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                RabbitMQSchema.getPrivateChatRoutingKey(conversationId) :
+                                RabbitMQSchema.getGroupChatRoutingKey(conversationId);
                         RabbitMQRequest payload = buildRabbitRequest(conversationId, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
                         log.info("Sent '@all' message to [{}] with routingKey [{}]", exchangeName, routingKey);
                         List<String> allUserIds = this.extractUserIdsFromConversation(conversation);
-                        this.pushToNotificationQueueAndSend(allUserIds, response);
+                        this.pushToNotificationQueueAndSend(allUserIds, response, NOTIFICATION_TYPE.MENTION);
                     } catch (Exception e) {
                         log.error("Error sending '@all' message to RabbitMQ", e);
                     }
@@ -175,7 +183,9 @@ public class ChatServiceImpl implements ChatService {
                     List<String> userIds = extractUserIds(request.getElements());
                     for (String id : userIds) {
                         try {
-                            String routingKey = RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
+                            String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                    RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, id) :
+                                    RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, id);
                             RabbitMQRequest payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                             rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
                             log.info("Sent mention message to [{}] with routingKey [{}] (userId: {})", exchangeName, routingKey, id);
@@ -183,10 +193,12 @@ public class ChatServiceImpl implements ChatService {
                             log.error("Error sending mention message for userId [{}]", id, e);
                         }
                     }
-                    this.pushToNotificationQueueAndSend(userIds, response);
+                    this.pushToNotificationQueueAndSend(userIds, response, NOTIFICATION_TYPE.MENTION);
                 } else {
                     try {
-                        String routingKey = RabbitMQSchema.getGroupChatRoutingKey(conversationId);
+                        String routingKey = conversation.getType() == CONVERSATION_TYPE.PRIVATE ?
+                                RabbitMQSchema.getPrivateChatRoutingKey(conversationId) :
+                                RabbitMQSchema.getGroupChatRoutingKey(conversationId);
                         Object payload = buildRabbitRequest(routingKey, response, action, PUSH_NOTIFICATION_TYPE.MESSAGE);
                         log.info("Sending message to conversation: {}", conversationId);
                         rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
@@ -201,7 +213,7 @@ public class ChatServiceImpl implements ChatService {
         });
     }
 
-    private void pushToNotificationQueueAndSend(List<String> allUserIds, MessageResponse response) {
+    private void pushToNotificationQueueAndSend(List<String> allUserIds, MessageResponse response, NOTIFICATION_TYPE notificationType) {
         executorService.submit(() -> {
             try {
                 RabbitMQRequest payload = buildRabbitRequest(RabbitMQSchema.NOTIFICATION_ROUTING_KEY, response, null, null);
@@ -209,6 +221,8 @@ public class ChatServiceImpl implements ChatService {
                     payload.setUserId(userId);
                     payload.setPushNotificationType(PUSH_NOTIFICATION_TYPE.NOTIFICATION);
                     payload.setPushNotificationAction(PushNotificationAction.NEW_NOTIFICATION);
+                    payload.setNotificationTitle(NotificationConstant.NOTIFICATION_TITLE);
+                    payload.setNotificationType(notificationType);
                     rabbitTemplate.convertAndSend(RabbitMQSchema.NOTIFICATION_EXCHANGE, RabbitMQSchema.NOTIFICATION_ROUTING_KEY, payload);
                 }
                 log.info("Sent message to notification queue");
@@ -366,6 +380,7 @@ public class ChatServiceImpl implements ChatService {
 
     private List<MessageElement> buildMessageElements(List<MessageElementRequest> requestElements, Message message) {
         List<MessageElement> result = new ArrayList<>();
+        int orderIndex = 0;
 
         for (MessageElementRequest elementReq : requestElements) {
             if (elementReq.getType() == MESSAGE_ELEMENT_TYPE.TEXT_LIST) {
@@ -379,6 +394,7 @@ public class ChatServiceImpl implements ChatService {
                 listElement.setStyle(elementReq.getStyle());
                 listElement.setIndent(elementReq.getIndent());
                 listElement.setMessage(message);
+                listElement.setOrderIndex(orderIndex++);
                 result.add(listElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
@@ -390,6 +406,7 @@ public class ChatServiceImpl implements ChatService {
                     sectionElement.setType(sectionReq.getType());
                     sectionElement.setIndent(0);
                     sectionElement.setMessage(message);
+                    sectionElement.setOrderIndex(orderIndex++);
                     result.add(sectionElement);
 
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
@@ -405,6 +422,7 @@ public class ChatServiceImpl implements ChatService {
                         contentElement.setItalic(contentReq.isItalic());
                         contentElement.setUnderline(contentReq.isUnderline());
                         contentElement.setMessage(message);
+                        contentElement.setOrderIndex(orderIndex++);
                         result.add(contentElement);
                     }
                 }
@@ -417,6 +435,7 @@ public class ChatServiceImpl implements ChatService {
                 sectionElement.setType(elementReq.getType());
                 sectionElement.setIndent(elementReq.getIndent());
                 sectionElement.setMessage(message);
+                sectionElement.setOrderIndex(orderIndex++);
                 result.add(sectionElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
@@ -431,16 +450,19 @@ public class ChatServiceImpl implements ChatService {
                     contentReq.setUnderline(contentReq.isUnderline());
                     MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
                     contentElement.setMessage(message);
+                    contentElement.setOrderIndex(orderIndex++);
                     result.add(contentElement);
                 }
-
             }
         }
+
         for (MessageElement el : result) {
-            log.info("Saving: id={}, content={}, type={}", el.getId(), el.getContent(), el.getType());
+            log.info("Saving: id={}, orderIndex={}, content={}, type={}", el.getId(), el.getOrderIndex(), el.getContent(), el.getType());
         }
+
         return result;
     }
+
 
     private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
         MessageElement contentElement = new MessageElement();
@@ -455,74 +477,53 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
-        for (MessageElement messageElement : messageElements) {
-            log.info("message element from database {} {} {} {} ", messageElement.getId(), messageElement.getParentId(), messageElement.getContent(), messageElement.getType());
-        }
+        messageElements.sort(Comparator.comparingInt(MessageElement::getOrderIndex));
 
-        // GET TEXT_LIST && // GET TEXT_SECTION WITHOUT PARENT_ID
-        Map<String, MessageElementResponse> mapIdToResponse = new HashMap<>();
+        Map<String, MessageElementResponse> mapIdToResponse = new LinkedHashMap<>();
         List<MessageElementResponse> result = new ArrayList<>();
 
-        for (MessageElement messageElement : messageElements) {
-            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_LIST) {
-                MessageElementResponse textListResponse = new MessageElementResponse();
-                textListResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_LIST);
-                textListResponse.setStyle(messageElement.getStyle());
-                textListResponse.setIndent(messageElement.getIndent());
-                textListResponse.setElements(new ArrayList<>());
-                mapIdToResponse.put(messageElement.getId(), textListResponse);
-            }
-            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() == null) {
-                MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
-                sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
-                sectionResponse.setStyle(messageElement.getStyle());
-                sectionResponse.setIndent(messageElement.getIndent());
-                sectionResponse.setContentElements(new ArrayList<>());
-                mapIdToResponse.put(messageElement.getId(), sectionResponse);
-            }
-        }
+        for (MessageElement element : messageElements) {
+            MESSAGE_ELEMENT_TYPE type = element.getType();
+            String parentId = element.getParentId();
 
-        // GET TEXT SECTION WITH PARENT_ID
-        for(MessageElement messageElement : messageElements) {
-            if(messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() != null) {
-                String parentId = messageElement.getParentId();
-                MessageElementResponse parentElement = mapIdToResponse.get(parentId);
-                if(parentElement != null) {
-                    MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
-                    sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
-                    sectionResponse.setContentElements(new ArrayList<>());
-                    List<MessageElementSectionResponse> sectionResponses = parentElement.getElements();
-                    sectionResponses.add(sectionResponse);
-                    for (MessageElement element : messageElements) {
-                        String sectionId = messageElement.getId();
-                        if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null && element.getParentId().equals(sectionId)) {
-                            MessageElementResponse parent = mapIdToResponse.get(parentId);
-                            if (parent != null && parent.getElements() != null) {
-                                MessageElementContentResponse text = getMessageElementContentResponse(element);
-                                sectionResponse.getContentElements().add(text);
-                            }
+            switch (type) {
+                case TEXT_LIST -> {
+                    MessageElementResponse textList = new MessageElementResponse();
+                    textList.setType(MESSAGE_ELEMENT_TYPE.TEXT_LIST);
+                    textList.setStyle(element.getStyle());
+                    textList.setIndent(element.getIndent());
+                    textList.setElements(new ArrayList<>());
+                    mapIdToResponse.put(element.getId(), textList);
+                    result.add(textList);
+                }
+
+                case TEXT_SECTION -> {
+                    MessageElementSectionResponse section = new MessageElementSectionResponse();
+                    section.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
+                    section.setStyle(element.getStyle());
+                    section.setIndent(element.getIndent());
+                    section.setContentElements(new ArrayList<>());
+
+                    if (parentId == null) {
+                        mapIdToResponse.put(element.getId(), section);
+                        result.add(section);
+                    } else {
+                        MessageElementResponse parent = mapIdToResponse.get(parentId);
+                        if (parent != null && parent.getElements() != null) {
+                            parent.getElements().add(section);
                         }
+                        mapIdToResponse.put(element.getId(), section);
+                    }
+                }
+
+                case TEXT, EMOJI, USER -> {
+                    MessageElementContentResponse content = getMessageElementContentResponse(element);
+                    MessageElementResponse parent = mapIdToResponse.get(parentId);
+                    if (parent instanceof MessageElementSectionResponse section && section.getContentElements() != null) {
+                        section.getContentElements().add(content);
                     }
                 }
             }
-        }
-
-        // GET TEXT WITH PARENT ID
-        for (MessageElement element : messageElements) {
-            if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null) {
-                MessageElementSectionResponse parent = (MessageElementSectionResponse) mapIdToResponse.get(element.getParentId());
-                if (parent != null && parent.getElements() != null) {
-                    MessageElementContentResponse text = getMessageElementContentResponse(element);
-                    parent.getContentElements().add(text);
-                } else if (parent != null && parent.getContentElements() != null) {
-                    MessageElementContentResponse text = getMessageElementContentResponse(element);
-                    parent.getContentElements().add(text);
-                }
-            }
-        }
-
-        for (Map.Entry<String, MessageElementResponse> entry : mapIdToResponse.entrySet()) {
-            result.add(entry.getValue());
         }
 
         return result;
@@ -789,19 +790,24 @@ public class ChatServiceImpl implements ChatService {
         String exchangeName = message.getConversation().getType().compareTo(CONVERSATION_TYPE.PRIVATE) > 0 ? RabbitMQSchema.PRIVATE_CHAT_EXCHANGE : RabbitMQSchema.GROUP_CHAT_EXCHANGE;
         if(messageReaction != null) {
             this.messageReactionRepository.delete(messageReaction);
+            // push realtime
             rabbitTemplate.convertAndSend(
                     exchangeName,
                     RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
                     buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.UNREACT_MESSAGE, PUSH_NOTIFICATION_TYPE.MESSAGE)
             );
-            // push queue to remove notification for sender of the message you unreact to
-        } else {
+            // delete notification in db
+            Notification notification = this.notificationRepository.findReactionNotification(
+                    NOTIFICATION_TYPE.REACTION,
+                    messageId,
+                    message.getUser().getId()
+            ).orElseThrow(() -> new NotFoundException(NotificationError.NOTIFICATION_NOT_FOUND));
             rabbitTemplate.convertAndSend(
-                    exchangeName,
-                    RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
-                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE, PUSH_NOTIFICATION_TYPE.MESSAGE)
+                    RabbitMQSchema.NOTIFICATION_DELETE_EXCHANGE,
+                    RabbitMQSchema.NOTIFICATION_DELETE_ROUTING_KEY,
+                    notification.getId()
             );
-            // push queue to save notification for sender of the message you react to
+        } else {
             MessageUserIconId id = new MessageUserIconId();
             id.setMessageId(message.getId());
             id.setUserId(user.getId());
@@ -813,6 +819,15 @@ public class ChatServiceImpl implements ChatService {
                     .user(user)
                     .build();
             this.messageReactionRepository.save(messageReaction);
+            // push realtime
+            rabbitTemplate.convertAndSend(
+                    exchangeName,
+                    RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()),
+                    buildRabbitRequest(RabbitMQSchema.getGroupChatAllRoutingKey(message.getConversation().getId()), this.mapMessageToMessageResponse(message), PushNotificationAction.REACT_MESSAGE, PUSH_NOTIFICATION_TYPE.MESSAGE)
+            );
+            // push to notification queue to save db
+            List<String> allUserIds = this.extractUserIdsFromConversation(message.getConversation());
+            this.pushToNotificationQueueAndSend(List.of(message.getUser().getId()), this.mapMessageToMessageResponse(message), NOTIFICATION_TYPE.REACTION);
         }
 
         return RESPONSE_STATUS.SUCCESS.toString();

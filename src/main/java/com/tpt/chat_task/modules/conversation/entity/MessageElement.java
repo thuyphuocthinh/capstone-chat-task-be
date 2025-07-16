@@ -68,6 +68,9 @@ public class MessageElement {
     @JoinColumn(name = "message_id", nullable = false)
     private Message message;
 
+    @Column(nullable = false, name = "order_index")
+    private int orderIndex = 0;
+
     public void setContent(String content) {
         log.info("set content message elements: {}", content);
         this.content = content;

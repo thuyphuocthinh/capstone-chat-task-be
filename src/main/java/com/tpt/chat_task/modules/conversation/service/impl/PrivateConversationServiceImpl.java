@@ -4,6 +4,9 @@ import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.constant.ConversationError;
@@ -100,7 +103,17 @@ public class PrivateConversationServiceImpl implements PrivateConversationServic
         this.rabbitTemplate.convertAndSend(
                 conversationAddMemberExchange,
                 conversationAddMemberRoutingKey,
-                privateConversation.getUsers().stream().map(User::getId).toList()
+                RabbitMQRequest.builder()
+                        .exchangeType(EXCHANGE_TYPE.TOPIC)
+                        .routingKey(conversationAddMemberRoutingKey)
+                        .payload(
+                                ConversationMemberRequest.builder()
+                                        .type(CONVERSATION_TYPE.PRIVATE)
+                                        .conversationId(privateConversation.getId())
+                                        .userIds(privateConversation.getUsers().stream().map(User::getId).toList())
+                                        .build()
+                        )
+                        .build()
         );
 
         return PrivateConversationDetailResponse.builder()

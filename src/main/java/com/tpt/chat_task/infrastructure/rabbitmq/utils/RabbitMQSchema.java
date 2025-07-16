@@ -19,6 +19,12 @@ public class RabbitMQSchema {
 
     public static final String NOTIFICATION_QUEUE = "notification_queue";
 
+    public static final String NOTIFICATION_DELETE_QUEUE = "notification_delete_queue";
+
+    public static final String NOTIFICATION_DELETE_EXCHANGE = "notification_delete_exchange";
+
+    public static final String NOTIFICATION_DELETE_ROUTING_KEY = "notification_delete_routing_key";
+
     public static final String CONVERSATION_ADD_MEMBER_EXCHANGE = "conversation_add_member_exchange";
 
     public static final String CONVERSATION_ADD_MEMBER_ROUTING_KEY = "conversation_add_member_routing_key";

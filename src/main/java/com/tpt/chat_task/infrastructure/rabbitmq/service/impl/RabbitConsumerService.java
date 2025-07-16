@@ -98,8 +98,15 @@ public class RabbitConsumerService {
         if(title != null) {
             notificationRequest.setTitle(rabbitMQRequest.getNotificationTitle());
         }
-        notificationRequest.setData((JsonNode) rabbitMQRequest.getPayload());
+        JsonNode jsonPayload = objectMapper.convertValue(rabbitMQRequest.getPayload(), JsonNode.class);
+        notificationRequest.setData(jsonPayload);
         notificationService.saveNotification(notificationRequest);
+    }
+
+    @RabbitListener(queues = "notification_delete_queue", concurrency = "2")
+    public void receiveNotificationDeleteEvent(String notificationId, Message message) {
+        log.info("Received notification delete event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
+        this.notificationService.deleteNotification(notificationId);
     }
 
     @RabbitListener(queues = "conversation_add_member_queue", concurrency = "2")

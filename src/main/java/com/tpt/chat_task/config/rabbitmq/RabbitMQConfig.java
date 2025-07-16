@@ -42,6 +42,15 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Value("${spring.rabbitmq.notification.routing-key}")
     private String notificationRoutingKey;
 
+    @Value("${spring.rabbitmq.notification.delete-queue}")
+    private String notificationDeleteQueue;
+
+    @Value("${spring.rabbitmq.notification.delete-exchange}")
+    private String notificationDeleteExchange;
+
+    @Value("${spring.rabbitmq.notification.delete-routing-key}")
+    private String notificationDeleteRoutingKey;
+
     @Value("${spring.rabbitmq.conversations.members.add-queue}")
     private String conversationAddMemberQueue;
 
@@ -142,6 +151,21 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Bean
     public Binding notificationBinding(Queue notificationQueue, DirectExchange notificationExchange) {
         return BindingBuilder.bind(notificationQueue).to(notificationExchange).with(notificationRoutingKey);
+    }
+
+    @Bean
+    public DirectExchange notificationDeleteExchange() {
+        return new DirectExchange(notificationDeleteExchange);
+    }
+
+    @Bean
+    public Queue notificationDeleteQueue() {
+        return new Queue(notificationDeleteQueue, true);
+    }
+
+    @Bean
+    public Binding notificationDeleteBinding(Queue notificationQueue, DirectExchange notificationExchange) {
+        return BindingBuilder.bind(notificationQueue).to(notificationExchange).with(notificationDeleteRoutingKey);
     }
 
     @Bean

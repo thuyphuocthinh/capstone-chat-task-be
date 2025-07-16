@@ -8,11 +8,13 @@ import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
 import com.tpt.chat_task.infrastructure.websocket.dto.WebSocketResponse;
 import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
+import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
 import com.tpt.chat_task.modules.notification.constant.NotificationError;
 import com.tpt.chat_task.modules.notification.dto.NotificationDetailResponse;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
 import com.tpt.chat_task.modules.notification.entity.Notification;
 import com.tpt.chat_task.modules.notification.entity.NotificationUser;
+import com.tpt.chat_task.modules.notification.entity.NotificationUserId;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.repository.NotificationRepository;
 import com.tpt.chat_task.modules.notification.repository.NotificationUserRepository;
@@ -22,6 +24,7 @@ import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +35,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
 
@@ -56,24 +60,27 @@ public class NotificationServiceImpl implements NotificationService {
         notification = notificationRepository.save(notification);
 
         NotificationUser notificationUser = new NotificationUser();
+        NotificationUserId notificationUserId = new NotificationUserId(notification.getId(), user.getId());
+        notificationUser.setId(notificationUserId);
         notificationUser.setNotification(notification);
         notificationUser.setUser(user);
         notificationUserRepository.save(notificationUser);
 
         // send notification here by using websocket
         messagingTemplate.convertAndSendToUser(
-                WebSocketSchema.getWebsocketNotificationQueue(),
                 user.getId(),
+                WebSocketSchema.getWebsocketNotificationQueue(),
                 WebSocketResponse.builder()
                         .data(
                                 NotificationDetailResponse.builder()
                                         .data(notification.getData())
+                                        .userId(user.getId())
                                         .title(notificationRequest.getTitle())
                                         .type(notificationRequest.getType())
                                         .id(notification.getId())
                                         .build()
                         )
-                        .action("NOTIFICATION")
+                        .action(NotificationConstant.NOTIFICATION_ACTION)
                         .type(PUSH_NOTIFICATION_TYPE.NOTIFICATION)
                         .notificationType(notification.getType())
                         .build()
@@ -88,15 +95,19 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public SuccessResponseWithMetadata<?> getNotificationsByUser(String userId, Integer paging, Integer page) throws NotFoundException {
+        log.info("notification user id: {}", userId);
         this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
 
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<Notification> notificationPagePage = this.notificationUserRepository.findWorkspacesByUserId(userId, pageable);
-        List<Notification> notifications = notificationPagePage.getContent();
+        Page<Notification> notificationPage = this.notificationUserRepository.findNotificationsByUserId(userId, pageable);
+        log.info("notifications: {}", notificationPage.toString());
+
+        List<Notification> notifications = notificationPage.getContent();
 
         List<NotificationDetailResponse> notificationDetailResponses = notifications.stream().map(n -> {
             return NotificationDetailResponse.builder()
                     .id(n.getId())
+                    .userId(userId)
                     .title(n.getTitle())
                     .data(n.getData())
                     .type(n.getType())
@@ -104,10 +115,10 @@ public class NotificationServiceImpl implements NotificationService {
         }).toList();
 
         Metadata metadata = Metadata.builder()
-                .currentPage(notificationPagePage.getNumber() + 1)
-                .totalPages(notificationPagePage.getTotalPages())
-                .totalElements((int) notificationPagePage.getTotalElements())
-                .pageSize(notificationPagePage.getSize())
+                .currentPage(notificationPage.getNumber() + 1)
+                .totalPages(notificationPage.getTotalPages())
+                .totalElements((int) notificationPage.getTotalElements())
+                .pageSize(notificationPage.getSize())
                 .build();
 
         return SuccessResponseWithMetadata.builder()
@@ -121,12 +132,13 @@ public class NotificationServiceImpl implements NotificationService {
         this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
 
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<Notification> notificationPagePage = this.notificationUserRepository.findWorkspacesByUserIdAndType(userId, type, pageable);
+        Page<Notification> notificationPagePage = this.notificationUserRepository.findNotificationsByUserIdAndType(userId, type, pageable);
         List<Notification> notifications = notificationPagePage.getContent();
 
         List<NotificationDetailResponse> notificationDetailResponses = notifications.stream().map(n -> {
             return NotificationDetailResponse.builder()
                     .id(n.getId())
+                    .userId(userId)
                     .title(n.getTitle())
                     .data(n.getData())
                     .type(n.getType())
