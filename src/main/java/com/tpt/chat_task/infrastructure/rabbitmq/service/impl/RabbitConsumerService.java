@@ -103,6 +103,13 @@ public class RabbitConsumerService {
         notificationService.saveNotification(notificationRequest);
     }
 
+    @RabbitListener(queues = "notification_queue", concurrency = "2")
+    public void receiveNotificationDeleteEvent(String notificationId, Message message) {
+        log.info("Received notification delete event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
+        this.notificationService.deleteNotification(notificationId);
+    }
+
+
     @RabbitListener(queues = "conversation_add_member_queue", concurrency = "2")
     public void receiveAddMemberConversationEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
         log.info("Received add member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());

@@ -103,7 +103,6 @@ public class NotificationServiceImpl implements NotificationService {
 
         List<Notification> notifications = notificationPage.getContent();
 
-
         List<NotificationDetailResponse> notificationDetailResponses = notifications.stream().map(n -> {
             return NotificationDetailResponse.builder()
                     .id(n.getId())

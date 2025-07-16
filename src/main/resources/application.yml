@@ -42,6 +42,9 @@ spring:
       queue: notification_queue
       exchange: notification_exchange
       routing-key: notification_routing_key
+      delete-queue: notification_delete_queue
+      delete-exchange: notification_delete_exchange
+      delete-routing-key: notification_delete_routing_key
     conversations:
       members:
         add-queue: conversation_add_member_queue
