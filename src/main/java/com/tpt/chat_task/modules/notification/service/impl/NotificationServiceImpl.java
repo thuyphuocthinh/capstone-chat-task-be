@@ -8,6 +8,7 @@ import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
 import com.tpt.chat_task.infrastructure.websocket.dto.WebSocketResponse;
 import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
+import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
 import com.tpt.chat_task.modules.notification.constant.NotificationError;
 import com.tpt.chat_task.modules.notification.dto.NotificationDetailResponse;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
@@ -67,8 +68,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         // send notification here by using websocket
         messagingTemplate.convertAndSendToUser(
-                WebSocketSchema.getWebsocketNotificationQueue(),
                 user.getId(),
+                WebSocketSchema.getWebsocketNotificationQueue(),
                 WebSocketResponse.builder()
                         .data(
                                 NotificationDetailResponse.builder()
@@ -79,7 +80,7 @@ public class NotificationServiceImpl implements NotificationService {
                                         .id(notification.getId())
                                         .build()
                         )
-                        .action("NOTIFICATION")
+                        .action(NotificationConstant.NOTIFICATION_ACTION)
                         .type(PUSH_NOTIFICATION_TYPE.NOTIFICATION)
                         .notificationType(notification.getType())
                         .build()

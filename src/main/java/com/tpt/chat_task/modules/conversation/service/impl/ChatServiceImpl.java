@@ -380,6 +380,7 @@ public class ChatServiceImpl implements ChatService {
 
     private List<MessageElement> buildMessageElements(List<MessageElementRequest> requestElements, Message message) {
         List<MessageElement> result = new ArrayList<>();
+        int orderIndex = 0;
 
         for (MessageElementRequest elementReq : requestElements) {
             if (elementReq.getType() == MESSAGE_ELEMENT_TYPE.TEXT_LIST) {
@@ -393,6 +394,7 @@ public class ChatServiceImpl implements ChatService {
                 listElement.setStyle(elementReq.getStyle());
                 listElement.setIndent(elementReq.getIndent());
                 listElement.setMessage(message);
+                listElement.setOrderIndex(orderIndex++);
                 result.add(listElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
@@ -404,6 +406,7 @@ public class ChatServiceImpl implements ChatService {
                     sectionElement.setType(sectionReq.getType());
                     sectionElement.setIndent(0);
                     sectionElement.setMessage(message);
+                    sectionElement.setOrderIndex(orderIndex++);
                     result.add(sectionElement);
 
                     for (MessageElementContentRequest contentReq : sectionReq.getElements()) {
@@ -419,6 +422,7 @@ public class ChatServiceImpl implements ChatService {
                         contentElement.setItalic(contentReq.isItalic());
                         contentElement.setUnderline(contentReq.isUnderline());
                         contentElement.setMessage(message);
+                        contentElement.setOrderIndex(orderIndex++);
                         result.add(contentElement);
                     }
                 }
@@ -431,6 +435,7 @@ public class ChatServiceImpl implements ChatService {
                 sectionElement.setType(elementReq.getType());
                 sectionElement.setIndent(elementReq.getIndent());
                 sectionElement.setMessage(message);
+                sectionElement.setOrderIndex(orderIndex++);
                 result.add(sectionElement);
 
                 for (MessageElementSectionRequest sectionReq : elementReq.getElements()) {
@@ -445,16 +450,19 @@ public class ChatServiceImpl implements ChatService {
                     contentReq.setUnderline(contentReq.isUnderline());
                     MessageElement contentElement = getMessageElement(contentReq, contentId, sectionId);
                     contentElement.setMessage(message);
+                    contentElement.setOrderIndex(orderIndex++);
                     result.add(contentElement);
                 }
-
             }
         }
+
         for (MessageElement el : result) {
-            log.info("Saving: id={}, content={}, type={}", el.getId(), el.getContent(), el.getType());
+            log.info("Saving: id={}, orderIndex={}, content={}, type={}", el.getId(), el.getOrderIndex(), el.getContent(), el.getType());
         }
+
         return result;
     }
+
 
     private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
         MessageElement contentElement = new MessageElement();
@@ -469,74 +477,53 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private List<MessageElementResponse> mapMessageElementsToResponse(List<MessageElement> messageElements) {
-        for (MessageElement messageElement : messageElements) {
-            log.info("message element from database {} {} {} {} ", messageElement.getId(), messageElement.getParentId(), messageElement.getContent(), messageElement.getType());
-        }
+        messageElements.sort(Comparator.comparingInt(MessageElement::getOrderIndex));
 
-        // GET TEXT_LIST && // GET TEXT_SECTION WITHOUT PARENT_ID
-        Map<String, MessageElementResponse> mapIdToResponse = new HashMap<>();
+        Map<String, MessageElementResponse> mapIdToResponse = new LinkedHashMap<>();
         List<MessageElementResponse> result = new ArrayList<>();
 
-        for (MessageElement messageElement : messageElements) {
-            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_LIST) {
-                MessageElementResponse textListResponse = new MessageElementResponse();
-                textListResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_LIST);
-                textListResponse.setStyle(messageElement.getStyle());
-                textListResponse.setIndent(messageElement.getIndent());
-                textListResponse.setElements(new ArrayList<>());
-                mapIdToResponse.put(messageElement.getId(), textListResponse);
-            }
-            if (messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() == null) {
-                MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
-                sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
-                sectionResponse.setStyle(messageElement.getStyle());
-                sectionResponse.setIndent(messageElement.getIndent());
-                sectionResponse.setContentElements(new ArrayList<>());
-                mapIdToResponse.put(messageElement.getId(), sectionResponse);
-            }
-        }
+        for (MessageElement element : messageElements) {
+            MESSAGE_ELEMENT_TYPE type = element.getType();
+            String parentId = element.getParentId();
 
-        // GET TEXT SECTION WITH PARENT_ID
-        for(MessageElement messageElement : messageElements) {
-            if(messageElement.getType() == MESSAGE_ELEMENT_TYPE.TEXT_SECTION && messageElement.getParentId() != null) {
-                String parentId = messageElement.getParentId();
-                MessageElementResponse parentElement = mapIdToResponse.get(parentId);
-                if(parentElement != null) {
-                    MessageElementSectionResponse sectionResponse = new MessageElementSectionResponse();
-                    sectionResponse.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
-                    sectionResponse.setContentElements(new ArrayList<>());
-                    List<MessageElementSectionResponse> sectionResponses = parentElement.getElements();
-                    sectionResponses.add(sectionResponse);
-                    for (MessageElement element : messageElements) {
-                        String sectionId = messageElement.getId();
-                        if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null && element.getParentId().equals(sectionId)) {
-                            MessageElementResponse parent = mapIdToResponse.get(parentId);
-                            if (parent != null && parent.getElements() != null) {
-                                MessageElementContentResponse text = getMessageElementContentResponse(element);
-                                sectionResponse.getContentElements().add(text);
-                            }
+            switch (type) {
+                case TEXT_LIST -> {
+                    MessageElementResponse textList = new MessageElementResponse();
+                    textList.setType(MESSAGE_ELEMENT_TYPE.TEXT_LIST);
+                    textList.setStyle(element.getStyle());
+                    textList.setIndent(element.getIndent());
+                    textList.setElements(new ArrayList<>());
+                    mapIdToResponse.put(element.getId(), textList);
+                    result.add(textList);
+                }
+
+                case TEXT_SECTION -> {
+                    MessageElementSectionResponse section = new MessageElementSectionResponse();
+                    section.setType(MESSAGE_ELEMENT_TYPE.TEXT_SECTION);
+                    section.setStyle(element.getStyle());
+                    section.setIndent(element.getIndent());
+                    section.setContentElements(new ArrayList<>());
+
+                    if (parentId == null) {
+                        mapIdToResponse.put(element.getId(), section);
+                        result.add(section);
+                    } else {
+                        MessageElementResponse parent = mapIdToResponse.get(parentId);
+                        if (parent != null && parent.getElements() != null) {
+                            parent.getElements().add(section);
                         }
+                        mapIdToResponse.put(element.getId(), section);
+                    }
+                }
+
+                case TEXT, EMOJI, USER -> {
+                    MessageElementContentResponse content = getMessageElementContentResponse(element);
+                    MessageElementResponse parent = mapIdToResponse.get(parentId);
+                    if (parent instanceof MessageElementSectionResponse section && section.getContentElements() != null) {
+                        section.getContentElements().add(content);
                     }
                 }
             }
-        }
-
-        // GET TEXT WITH PARENT ID
-        for (MessageElement element : messageElements) {
-            if (element.getType() == MESSAGE_ELEMENT_TYPE.TEXT && element.getParentId() != null) {
-                MessageElementSectionResponse parent = (MessageElementSectionResponse) mapIdToResponse.get(element.getParentId());
-                if (parent != null && parent.getElements() != null) {
-                    MessageElementContentResponse text = getMessageElementContentResponse(element);
-                    parent.getContentElements().add(text);
-                } else if (parent != null && parent.getContentElements() != null) {
-                    MessageElementContentResponse text = getMessageElementContentResponse(element);
-                    parent.getContentElements().add(text);
-                }
-            }
-        }
-
-        for (Map.Entry<String, MessageElementResponse> entry : mapIdToResponse.entrySet()) {
-            result.add(entry.getValue());
         }
 
         return result;
