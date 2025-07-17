@@ -35,6 +35,9 @@ public class TaskBoard {
     @NotBlank(message = "Background url cannot be blank")
     private String backgroundUrl;
 
+    @Column(nullable = false, name = "is_pinned")
+    private boolean isPinned = Boolean.FALSE;
+
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
     private LocalDateTime createdAt;
