@@ -6,8 +6,11 @@ import com.tpt.chat_task.modules.task.constant.TaskBoardError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskBoardRequest;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskBoardRequest;
 import com.tpt.chat_task.modules.task.dto.response.TaskBoardDetailResponse;
+import com.tpt.chat_task.modules.task.dto.response.TaskGroupDetailResponse;
 import com.tpt.chat_task.modules.task.entity.TaskBoard;
+import com.tpt.chat_task.modules.task.entity.TaskGroup;
 import com.tpt.chat_task.modules.task.repository.TaskBoardRepository;
+import com.tpt.chat_task.modules.task.repository.TaskGroupRepository;
 import com.tpt.chat_task.modules.task.service.TaskBoardService;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.entity.Workspace;
@@ -15,6 +18,7 @@ import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -24,6 +28,8 @@ public class TaskBoardServiceImpl implements TaskBoardService {
     private final TaskBoardRepository taskBoardRepository;
 
     private final WorkspaceRepository workspaceRepository;
+
+    private final TaskGroupRepository taskGroupRepository;
 
     @Override
     public TaskBoardDetailResponse createTaskBoard(String workspaceId, CreateTaskBoardRequest request) throws NotFoundException {
@@ -105,5 +111,16 @@ public class TaskBoardServiceImpl implements TaskBoardService {
         TaskBoard taskBoard = this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
         taskBoard.setPinned(!taskBoard.isPinned());
         return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    @Override
+    public List<TaskGroupDetailResponse> getTaskGroupsByTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException {
+        this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
+        this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
+        List<TaskGroup> taskGroups = this.taskGroupRepository.findAllByTaskBoard(taskBoardId);
+        List<TaskGroupDetailResponse> taskGroupDetailResponses = taskGroups.stream().map(tg -> {
+            return TaskGroupDetailResponse.builder().id(tg.getId()).title(tg.getTitle()).build();
+        }).toList();
+        return taskGroupDetailResponses;
     }
 }

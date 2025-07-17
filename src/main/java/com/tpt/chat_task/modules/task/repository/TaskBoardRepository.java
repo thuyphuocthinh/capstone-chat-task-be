@@ -10,10 +10,9 @@ import java.util.List;
 
 @Repository
 public interface TaskBoardRepository extends JpaRepository<TaskBoard, String> {
-
     @Query(value = """
         SELECT *
-        FROM task_board
+        FROM task_boards
         WHERE workspace_id = :workspaceId
     """, nativeQuery = true)
     List<TaskBoard> findAllByWorkspaceId(@Param("workspaceId") String workspaceId);

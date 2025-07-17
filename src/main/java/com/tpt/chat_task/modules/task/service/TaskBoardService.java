@@ -4,6 +4,7 @@ import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskBoardRequest;
 import com.tpt.chat_task.modules.task.dto.response.TaskBoardDetailResponse;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskBoardRequest;
+import com.tpt.chat_task.modules.task.dto.response.TaskGroupDetailResponse;
 
 import java.util.List;
 
@@ -14,4 +15,5 @@ public interface TaskBoardService {
     public String deleteTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException;
     public List<TaskBoardDetailResponse> getListTaskBoards(String workspaceId) throws NotFoundException;
     public String togglePinTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException;
+    public List<TaskGroupDetailResponse> getTaskGroupsByTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException;
 }

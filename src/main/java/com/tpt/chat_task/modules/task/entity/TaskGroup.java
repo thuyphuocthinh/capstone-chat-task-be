@@ -27,12 +27,15 @@ public class TaskGroup {
     private String id;
 
     @Column(name = "title", nullable = false)
-    @NotBlank(message = "Task board title cannot be blank")
+    @NotBlank(message = "Task group title cannot be blank")
     private String title;
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Column(name = "order_index")
+    private int orderIndex = 0;
 
     @Column(name = "updated_at")
     @UpdateTimestamp
