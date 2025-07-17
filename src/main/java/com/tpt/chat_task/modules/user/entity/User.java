@@ -5,6 +5,7 @@ import com.tpt.chat_task.modules.auth.entity.Token;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.task.entity.Task;
+import com.tpt.chat_task.modules.task.entity.TaskBoard;
 import com.tpt.chat_task.modules.user.enums.USER_ROLE;
 import com.tpt.chat_task.modules.user.enums.USER_STATUS;
 import com.tpt.chat_task.modules.workspace.entity.WorkspaceUser;
@@ -101,4 +102,7 @@ public class User {
 
     @ManyToMany(mappedBy = "users")
     private List<Task> tasks = new ArrayList<>();
+
+    @ManyToMany(mappedBy = "users")
+    private List<TaskBoard> taskBoards = new ArrayList<>();
 }

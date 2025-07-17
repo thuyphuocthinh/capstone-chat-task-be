@@ -1,4 +1,4 @@
-package com.tpt.chat_task.modules.task.dto.request;
+package com.tpt.chat_task.modules.task.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class UpdateTaskBoardRequest {
+public class TaskBoardResponse {
+    private String id;
     private String title;
-
-    private String backgroundImageUrl;
 }

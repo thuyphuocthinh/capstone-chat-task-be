@@ -34,7 +34,7 @@ public class TaskGroup {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @Column(name = "order_index")
+    @Column(name = "order_index", nullable = false)
     private int orderIndex = 0;
 
     @Column(name = "updated_at")

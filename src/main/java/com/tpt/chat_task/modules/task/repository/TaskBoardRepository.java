@@ -16,4 +16,13 @@ public interface TaskBoardRepository extends JpaRepository<TaskBoard, String> {
         WHERE workspace_id = :workspaceId
     """, nativeQuery = true)
     List<TaskBoard> findAllByWorkspaceId(@Param("workspaceId") String workspaceId);
+
+    @Query(value = """
+        SELECT *
+        FROM task_boards tb
+        JOIN task_board_users tbu
+        ON tb.id = tbu.board_id
+        WHERE tbu.user_id = :userId AND tb.workspace_id = :workspaceId
+    """, nativeQuery = true)
+    List<TaskBoard> findAllByWorkspaceIdAndUserId(@Param("workspaceId") String workspaceId, @Param("userId") String userId);
 }
