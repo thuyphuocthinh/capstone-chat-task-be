@@ -49,7 +49,12 @@ public class Task {
     @JoinColumn(name = "task_group_id", nullable = false)
     private TaskGroup taskGroup;
 
-    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL, mappedBy = "task")
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            joinColumns = @JoinColumn(name = "task_id", nullable = false),
+            inverseJoinColumns = @JoinColumn(name = "label_id", nullable = false),
+            name = "task_labels"
+    )
     private List<Label> labels = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)

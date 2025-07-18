@@ -61,4 +61,7 @@ public class TaskBoard {
             name = "task_board_users"
     )
     private List<User> users = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "taskBoard")
+    private List<Label> labels = new ArrayList<>();
 }

@@ -6,12 +6,14 @@ import com.tpt.chat_task.common.dto.SuccessResponseWithMessage;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskBoardRequest;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskBoardRequest;
+import com.tpt.chat_task.modules.task.service.LabelService;
 import com.tpt.chat_task.modules.task.service.TaskBoardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TaskBoardController {
     private final TaskBoardService taskBoardService;
+
+    private final LabelService labelService;
 
     @PostMapping
     public ResponseEntity<?> createNewTaskBoard(
@@ -131,6 +135,16 @@ public class TaskBoardController {
     ) throws BadRequestException {
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskBoardService.getListMembers(workspaceId, boardId))
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{boardId/labels")
+    public ResponseEntity<?> getLabelsOfTaskBoard(
+            @PathVariable String boardId
+    ) {
+        SuccessResponse response = SuccessResponse.builder()
+                .data(this.labelService.getAllLabelsByTaskBoard(boardId))
                 .build();
         return ResponseEntity.ok(response);
     }
