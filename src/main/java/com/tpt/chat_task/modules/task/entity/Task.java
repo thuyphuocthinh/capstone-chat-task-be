@@ -27,6 +27,9 @@ public class Task {
     @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
     private String id;
 
+    @Column(name = "title", nullable = false)
+    private String title;
+
     @Lob
     @Column(columnDefinition = "TEXT", nullable = false, name = "description")
     private String description;
@@ -49,6 +52,9 @@ public class Task {
     @JoinColumn(name = "task_group_id", nullable = false)
     private TaskGroup taskGroup;
 
+    @Column(name = "order_index")
+    private int orderIndex = 1;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             joinColumns = @JoinColumn(name = "task_id", nullable = false),
@@ -70,4 +76,7 @@ public class Task {
 
     @OneToMany(mappedBy = "task", fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
     private List<TaskComment> taskComments = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL, mappedBy = "task")
+    private List<Resource> resources = new ArrayList<>();
 }

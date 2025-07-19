@@ -36,7 +36,7 @@ public class CheckListServiceImpl implements CheckListService {
 
     private final TaskRepository taskRepository;
 
-    private CheckListResponse mapCheckListToResponse(CheckList checkList) {
+    public CheckListResponse mapCheckListToResponse(CheckList checkList) {
         return CheckListResponse.builder()
                 .id(checkList.getId())
                 .title(checkList.getTitle())
@@ -46,7 +46,7 @@ public class CheckListServiceImpl implements CheckListService {
                 .build();
     }
 
-    private CheckListItemResponse mapCheckListItemToResponse(CheckListItem checkListItem) {
+    public CheckListItemResponse mapCheckListItemToResponse(CheckListItem checkListItem) {
         return CheckListItemResponse.builder()
                 .id(checkListItem.getId())
                 .title(checkListItem.getTitle())
