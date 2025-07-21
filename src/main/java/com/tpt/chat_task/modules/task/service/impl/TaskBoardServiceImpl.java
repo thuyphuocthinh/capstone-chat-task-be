@@ -103,6 +103,7 @@ public class TaskBoardServiceImpl implements TaskBoardService {
 
     private List<TaskGroupDetailResponse> getAndMapTaskGroups(String taskBoardId) {
         List<TaskGroup> taskGroups = this.taskGroupRepository.findAllByTaskBoard(taskBoardId);
+
         return taskGroups.stream().map(tg -> {
             return TaskGroupDetailResponse.builder().id(tg.getId()).title(tg.getTitle()).build();
         }).toList();
