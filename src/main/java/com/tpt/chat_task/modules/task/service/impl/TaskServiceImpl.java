@@ -93,7 +93,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private String getUserRole(String workspaceId, String userId) throws NotFoundException {
-        WorkspaceUserId workspaceUserId = new WorkspaceUserId(workspaceId, userId);
+        WorkspaceUserId workspaceUserId = new WorkspaceUserId(userId, workspaceId);
         WorkspaceUser workspaceUser = this.workspaceUserRepository.findById(workspaceUserId)
                 .orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
 

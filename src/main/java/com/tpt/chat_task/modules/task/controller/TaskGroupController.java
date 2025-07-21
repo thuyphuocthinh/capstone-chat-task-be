@@ -64,7 +64,7 @@ public class TaskGroupController {
     }
 
     @DeleteMapping("/{boardId}/group-tasks/{groupTaskId}/change-position/{newPosition}")
-    public ResponseEntity<?> updateTaskGroup(
+    public ResponseEntity<?> changeTaskGroupPosition(
             @PathVariable String boardId,
             @PathVariable String groupTaskId,
             @PathVariable int newPosition

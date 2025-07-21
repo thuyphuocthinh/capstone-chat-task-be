@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.task.service.impl;
 
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
+import com.tpt.chat_task.common.exceptions.ForbiddenException;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.task.constant.TaskBoardError;
@@ -28,7 +29,9 @@ import com.tpt.chat_task.modules.workspace.repository.WorkspaceUserRepository;
 import com.tpt.chat_task.modules.workspace.service.WorkspaceService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +41,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TaskBoardServiceImpl implements TaskBoardService {
 
     private final TaskBoardRepository taskBoardRepository;
@@ -57,13 +61,11 @@ public class TaskBoardServiceImpl implements TaskBoardService {
     @Override
     public TaskBoardDetailResponse createTaskBoard(String token, String workspaceId, CreateTaskBoardRequest request) throws NotFoundException {
         String userId = this.jwtProvider.getIdFromToken(token);
-        User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
-
-        boolean isMember = user.getRole().equals(WORKSPACE_USER_ROLE.MEMBER);
-        if(isMember) {
-            throw new BadCredentialsException(TaskBoardError.NOT_ALLOWED_TO_CREATE_TASK_BOARD);
+        if(workspaceService.isRoleMemberOfWorkspace(workspaceId, userId)) {
+            throw new ForbiddenException(WorkspaceError.PERMISSION_DENIED);
         }
 
+        User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Workspace workspace = this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         List<User> userList = new ArrayList<>();
         userList.add(user);
@@ -107,22 +109,30 @@ public class TaskBoardServiceImpl implements TaskBoardService {
     }
 
     private String getUserRole(String workspaceId, String userId) throws NotFoundException {
-        WorkspaceUserId workspaceUserId = new WorkspaceUserId(workspaceId, userId);
+        WorkspaceUserId workspaceUserId = new WorkspaceUserId(userId, workspaceId);
         WorkspaceUser workspaceUser = this.workspaceUserRepository.findById(workspaceUserId)
-                .orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
-
+                .orElseThrow(() -> new NotFoundException(WorkspaceError.USER_NOT_IN_WORKSPACE));
         return workspaceUser.getUserRole().toString();
     }
 
     @Override
-    public TaskBoardDetailResponse getTaskBoardDetail(String workspaceId, String taskBoardId) throws NotFoundException {
+    public TaskBoardDetailResponse getTaskBoardDetail(String token, String workspaceId, String taskBoardId) throws NotFoundException, BadRequestException {
+        String userId = this.jwtProvider.getIdFromToken(token);
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         TaskBoard taskBoard = this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
+        if(!isMemberTaskBoard(taskBoard, userId)) {
+            throw new BadRequestException(TaskBoardError.USER_NOT_IN_TASK_BOARD);
+        }
         return mapTaskBoardToResponse(taskBoard);
     }
 
     @Override
-    public TaskBoardDetailResponse updateTaskBoard(String workspaceId, String taskBoardId, UpdateTaskBoardRequest request) throws NotFoundException {
+    public TaskBoardDetailResponse updateTaskBoard(String token, String workspaceId, String taskBoardId, UpdateTaskBoardRequest request) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        if(workspaceService.isRoleMemberOfWorkspace(workspaceId, userId)) {
+            throw new ForbiddenException(WorkspaceError.PERMISSION_DENIED);
+        }
+
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         TaskBoard taskBoard = this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
 
@@ -143,7 +153,11 @@ public class TaskBoardServiceImpl implements TaskBoardService {
     }
 
     @Override
-    public String deleteTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException {
+    public String deleteTaskBoard(String token, String workspaceId, String taskBoardId) throws NotFoundException {
+        String userId = this.jwtProvider.getIdFromToken(token);
+        if(workspaceService.isRoleMemberOfWorkspace(workspaceId, userId)) {
+            throw new ForbiddenException(WorkspaceError.PERMISSION_DENIED);
+        }
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
         this.taskBoardRepository.deleteById(taskBoardId);
@@ -170,7 +184,11 @@ public class TaskBoardServiceImpl implements TaskBoardService {
 
     @Override
     @Transactional
-    public TaskBoardDetailResponse addMemberToTaskBoard(String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException {
+    public TaskBoardDetailResponse addMemberToTaskBoard(String token, String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException {
+        String senderId = this.jwtProvider.getIdFromToken(token);
+        if(workspaceService.isRoleMemberOfWorkspace(workspaceId, senderId)) {
+            throw new ForbiddenException(WorkspaceError.PERMISSION_DENIED);
+        }
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         TaskBoard taskBoard = this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
@@ -209,7 +227,11 @@ public class TaskBoardServiceImpl implements TaskBoardService {
 
     @Override
     @Transactional
-    public String deleteMemberFromTaskBoard(String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException {
+    public String deleteMemberFromTaskBoard(String token, String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException {
+        String senderId = this.jwtProvider.getIdFromToken(token);
+        if(workspaceService.isRoleMemberOfWorkspace(workspaceId, senderId)) {
+            throw new ForbiddenException(WorkspaceError.PERMISSION_DENIED);
+        }
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
         TaskBoard taskBoard = this.taskBoardRepository.findById(taskBoardId).orElseThrow(() -> new NotFoundException(TaskBoardError.TASK_BOARD_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
@@ -257,7 +279,11 @@ public class TaskBoardServiceImpl implements TaskBoardService {
         String userId = this.jwtProvider.getIdFromToken(token);
         List<TaskBoard> taskBoards = this.taskBoardRepository.findAllByWorkspaceIdAndUserId(workspaceId, userId);
         return taskBoards.stream().map(tb -> {
-            return TaskBoardResponse.builder().id(tb.getId()).title(tb.getTitle()).build();
+            return TaskBoardResponse.builder()
+                    .id(tb.getId())
+                    .title(tb.getTitle())
+                    .isPinned(tb.isPinned())
+                    .build();
         }).toList();
     }
 }

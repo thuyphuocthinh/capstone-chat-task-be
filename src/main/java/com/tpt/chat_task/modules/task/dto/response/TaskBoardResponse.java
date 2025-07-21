@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class TaskBoardResponse {
     private String id;
     private String title;
+    private boolean isPinned;
 }

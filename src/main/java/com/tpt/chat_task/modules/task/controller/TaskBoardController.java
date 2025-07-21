@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +27,7 @@ public class TaskBoardController {
 
     @PostMapping
     public ResponseEntity<?> createNewTaskBoard(
-            @PathVariable(name = "workspaceId") String workspaceId,
+            @PathVariable String workspaceId,
             @RequestBody @Valid CreateTaskBoardRequest request,
             @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
@@ -39,18 +40,20 @@ public class TaskBoardController {
 
     @GetMapping("/{boardId}")
     public ResponseEntity<?> getDetailTaskBoard(
-            @PathVariable(name = "workspaceId") String workspaceId,
-            @PathVariable(name = "boardId") String boardId
-    ) throws NotFoundException {
+            @PathVariable String workspaceId,
+            @PathVariable String boardId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+    ) throws NotFoundException, BadRequestException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.taskBoardService.getTaskBoardDetail(workspaceId, boardId))
+                .data(this.taskBoardService.getTaskBoardDetail(accessToken, workspaceId, boardId))
                 .build();
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/all")
     public ResponseEntity<?> getAllTaskBoards(
-            @PathVariable(name = "workspaceId") String workspaceId
+            @PathVariable String workspaceId
     ) {
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskBoardService.getListTaskBoards(workspaceId))
@@ -60,7 +63,7 @@ public class TaskBoardController {
 
     @GetMapping("")
     public ResponseEntity<?> getAllTaskBoards(
-            @PathVariable(name = "workspaceId") String workspaceId,
+            @PathVariable String workspaceId,
             @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
         String accessToken = bearerToken.substring(7);
@@ -72,31 +75,35 @@ public class TaskBoardController {
 
     @PatchMapping("/{boardId}")
     public ResponseEntity<?> updateTaskBoard(
-            @PathVariable(name = "workspaceId") String workspaceId,
-            @PathVariable(name = "boardId") String boardId,
-            @RequestBody UpdateTaskBoardRequest request
+            @PathVariable String workspaceId,
+            @PathVariable String boardId,
+            @RequestBody UpdateTaskBoardRequest request,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.taskBoardService.updateTaskBoard(workspaceId, boardId, request))
+                .data(this.taskBoardService.updateTaskBoard(accessToken, workspaceId, boardId, request))
                 .build();
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{boardId}")
     public ResponseEntity<?> deleteTaskBoard(
-            @PathVariable(name = "workspaceId") String workspaceId,
-            @PathVariable(name = "boardId") String boardId
+            @PathVariable String workspaceId,
+            @PathVariable String boardId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
+        String accessToken = bearerToken.substring(7);
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
-                .message(this.taskBoardService.deleteTaskBoard(workspaceId, boardId))
+                .message(this.taskBoardService.deleteTaskBoard(accessToken, workspaceId, boardId))
                 .build();
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{boardId}/toggle-pin")
     public ResponseEntity<?> togglePinTaskBoard(
-            @PathVariable(name = "workspaceId") String workspaceId,
-            @PathVariable(name = "boardId") String boardId
+            @PathVariable String workspaceId,
+            @PathVariable String boardId
     ) {
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskBoardService.togglePinTaskBoard(workspaceId, boardId))
@@ -108,10 +115,12 @@ public class TaskBoardController {
     public ResponseEntity<?> addMemberToTaskBoard(
             @PathVariable String workspaceId,
             @PathVariable String memberId,
-            @PathVariable String boardId
+            @PathVariable String boardId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) throws BadRequestException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.taskBoardService.addMemberToTaskBoard(workspaceId, boardId, memberId))
+                .data(this.taskBoardService.addMemberToTaskBoard(accessToken, workspaceId, boardId, memberId))
                 .build();
         return ResponseEntity.ok(response);
     }
@@ -120,10 +129,12 @@ public class TaskBoardController {
     public ResponseEntity<?> removeMemberFromTaskBoard(
             @PathVariable String workspaceId,
             @PathVariable String memberId,
-            @PathVariable String boardId
+            @PathVariable String boardId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) throws BadRequestException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
-                .message(this.taskBoardService.deleteMemberFromTaskBoard(workspaceId, boardId, memberId))
+                .message(this.taskBoardService.deleteMemberFromTaskBoard(accessToken, workspaceId, boardId, memberId))
                 .build();
         return ResponseEntity.ok(response);
     }

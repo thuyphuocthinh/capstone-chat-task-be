@@ -13,13 +13,13 @@ import java.util.List;
 
 public interface TaskBoardService {
     public TaskBoardDetailResponse createTaskBoard(String token, String workspaceId, CreateTaskBoardRequest request) throws NotFoundException;
-    public TaskBoardDetailResponse getTaskBoardDetail(String workspaceId, String taskBoardId) throws NotFoundException;
-    public TaskBoardDetailResponse updateTaskBoard(String workspaceId, String taskBoardId, UpdateTaskBoardRequest request) throws NotFoundException;
-    public String deleteTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException;
+    public TaskBoardDetailResponse getTaskBoardDetail(String token, String workspaceId, String taskBoardId) throws NotFoundException, BadRequestException;
+    public TaskBoardDetailResponse updateTaskBoard(String token, String workspaceId, String taskBoardId, UpdateTaskBoardRequest request) throws NotFoundException;
+    public String deleteTaskBoard(String token, String workspaceId, String taskBoardId) throws NotFoundException;
     public List<TaskBoardDetailResponse> getListTaskBoards(String workspaceId) throws NotFoundException;
     public String togglePinTaskBoard(String workspaceId, String taskBoardId) throws NotFoundException;
-    public TaskBoardDetailResponse addMemberToTaskBoard(String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException;
-    public String deleteMemberFromTaskBoard(String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException;
+    public TaskBoardDetailResponse addMemberToTaskBoard(String token, String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException;
+    public String deleteMemberFromTaskBoard(String token, String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException;
     public List<WorkspaceMemberResponse> getListMembers(String workspaceId, String taskBoardId) throws NotFoundException;
     public List<TaskBoardResponse> getListTaskBoardsByWorkspaceAndUser(String workspaceId, String token) throws NotFoundException;
 }
