@@ -30,4 +30,5 @@ public interface TaskService {
     ) throws NotFoundException;
     public TaskDetailResponse toggleLabelTask(String taskId, String labelId) throws NotFoundException;
     public TaskDetailResponse addNewFiles(String taskId, List<MultipartFile> files) throws NotFoundException, IOException;
+    public TaskDetailResponse getDetailedTask(String taskGroupId, String taskId) throws NotFoundException;
 }

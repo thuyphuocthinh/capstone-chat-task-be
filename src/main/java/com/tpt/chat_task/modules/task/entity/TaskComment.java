@@ -40,16 +40,16 @@ public class TaskComment {
     private String content;
 
     @ManyToOne
-    @Column(name = "sender_id", nullable = false, updatable = false)
+    @JoinColumn(name = "sender_id", nullable = false, updatable = false)
     private User sender;
 
     @ElementCollection
-    @CollectionTable(name = "task_comemnt_mentions", joinColumns = @JoinColumn(name = "task_id"))
+    @CollectionTable(name = "task_comment_mentions", joinColumns = @JoinColumn(name = "task_comment_id"))
     @Column(name = "mention")
     private List<String> mentions = new ArrayList<>();
 
     @ElementCollection
-    @CollectionTable(name = "task_comemnt_resources", joinColumns = @JoinColumn(name = "task_id"))
+    @CollectionTable(name = "task_comment_resources", joinColumns = @JoinColumn(name = "task_comment_id"))
     @Column(name = "resource")
     private List<String> resources = new ArrayList<>();
 

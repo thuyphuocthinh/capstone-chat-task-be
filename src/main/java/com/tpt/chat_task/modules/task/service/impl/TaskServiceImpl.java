@@ -301,4 +301,11 @@ public class TaskServiceImpl implements TaskService {
         task.setResources(resources);
         return this.mapTaskToResponse(task);
     }
+
+    @Override
+    public TaskDetailResponse getDetailedTask(String taskGroupId, String taskId) throws NotFoundException {
+        this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
+        Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        return this.mapTaskToResponse(task);
+    }
 }

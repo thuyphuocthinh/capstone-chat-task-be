@@ -139,7 +139,7 @@ public class TaskBoardController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{boardId/labels")
+    @GetMapping("/{boardId}/labels")
     public ResponseEntity<?> getLabelsOfTaskBoard(
             @PathVariable String boardId
     ) {
