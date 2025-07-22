@@ -8,4 +8,7 @@ public class PushNotificationAction {
     public static final String REACT_MESSAGE = "REACT_MESSAGE";
     public static final String UNREACT_MESSAGE = "UNREACT_MESSAGE";
     public static final String NEW_NOTIFICATION = "NEW_NOTIFICATION";
+    public static final String COMMENT_TASK = "COMMENT_TASK";
+    public static final String UPDATE_COMMENT = "UPDATE_COMMENT";
+    public static final String DELETE_COMMENT = "DELETE_COMMENT";
 }

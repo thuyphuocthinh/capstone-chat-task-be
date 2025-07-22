@@ -31,7 +31,7 @@ public class Task {
     private String title;
 
     @Lob
-    @Column(columnDefinition = "TEXT", nullable = false, name = "description")
+    @Column(columnDefinition = "TEXT", name = "description")
     private String description;
 
     @Column(name = "start_date")

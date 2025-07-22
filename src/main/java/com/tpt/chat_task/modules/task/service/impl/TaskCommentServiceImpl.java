@@ -4,13 +4,21 @@ import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.PushNotificationAction;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
-import com.tpt.chat_task.modules.conversation.entity.Message;
+import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
+import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
+import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.task.constant.TaskCommentError;
 import com.tpt.chat_task.modules.task.constant.TaskError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskCommentRequest;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskCommentRequest;
 import com.tpt.chat_task.modules.task.dto.response.TaskCommentResponse;
+import com.tpt.chat_task.modules.task.dto.response.TaskDetailResponse;
 import com.tpt.chat_task.modules.task.entity.Task;
 import com.tpt.chat_task.modules.task.entity.TaskComment;
 import com.tpt.chat_task.modules.task.repository.TaskCommentRepository;
@@ -22,6 +30,7 @@ import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +39,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 // TODO: ADD QUEUE + REALTIME
@@ -45,6 +55,10 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     private final WorkspaceRepository workspaceRepository;
 
     private final UserRepository userRepository;
+
+    private final RabbitTemplate rabbitTemplate;
+
+    private final ExecutorService executorService;
 
     public TaskComment buildTaskComment(CreateTaskCommentRequest createTaskCommentRequest, Task task, User user) {
         TaskComment taskComment = new TaskComment();
@@ -76,19 +90,87 @@ public class TaskCommentServiceImpl implements TaskCommentService {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         TaskComment taskComment = this.buildTaskComment(createTaskCommentRequest, task, user);
         taskComment = this.taskCommentRepository.save(taskComment);
-        return this.mapTaskCommentToTaskCommentResponse(taskComment);
+        TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
+        this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.COMMENT_TASK, taskId);
+        return taskCommentResponse;
+    }
+
+    private void pushToQueueAsync(TaskCommentResponse taskCommentResponse, String pushNotificationAction, String taskId) {
+        executorService.execute(() -> {
+            this.rabbitTemplate.convertAndSend(
+                    RabbitMQSchema.TASK_EXCHANGE,
+                    RabbitMQSchema.getTaskRoutingKeyByUserId(taskId),
+                    this.buildRabbitRequest(
+                            RabbitMQSchema.TASK_ROUTING_KEY,
+                            taskCommentResponse,
+                            pushNotificationAction,
+                            PUSH_NOTIFICATION_TYPE.TASK
+                    )
+            );
+            if(!taskCommentResponse.getMentions().isEmpty()) {
+                List<String> mentions = taskCommentResponse.getMentions();
+                for(String mentionUserId : mentions) {
+                    this.pushToNotificationQueueAndDatabase(taskCommentResponse, mentionUserId);
+                }
+            }
+        });
+    }
+
+    private void pushToNotificationQueueAndDatabase(TaskCommentResponse taskCommentResponse, String userId) {
+        RabbitMQRequest payload = this.buildRabbitRequest(
+                RabbitMQSchema.NOTIFICATION_ROUTING_KEY,
+                taskCommentResponse,
+                PushNotificationAction.NEW_NOTIFICATION,
+                PUSH_NOTIFICATION_TYPE.NOTIFICATION
+        );
+        payload.setUserId(userId);
+        payload.setNotificationTitle(NotificationConstant.NOTIFICATION_TITLE);
+        payload.setNotificationType(NOTIFICATION_TYPE.MENTION);
+        this.rabbitTemplate.convertAndSend(
+                RabbitMQSchema.NOTIFICATION_EXCHANGE,
+                RabbitMQSchema.NOTIFICATION_ROUTING_KEY,
+                payload
+        );
+    }
+
+    private List<String> getMentionUserIds(TaskComment taskComment) {
+        return taskComment.getMentions().stream().map(id -> id).collect(Collectors.toList());
+    }
+
+    private List<String> getMembersIdOfTask(Task task) {
+        return task.getUsers().stream().map(User::getId).collect(Collectors.toList());
+    }
+
+    private RabbitMQRequest buildRabbitRequest(String routingKey, TaskCommentResponse response, String action, PUSH_NOTIFICATION_TYPE pushNotificationType) {
+        return RabbitMQRequest.builder()
+                .exchangeType(EXCHANGE_TYPE.TOPIC)
+                .routingKey(routingKey)
+                .payload(response)
+                .pushNotificationAction(action)
+                .pushNotificationType(pushNotificationType)
+                .build();
     }
 
     @Override
     public TaskCommentResponse updateComment(String taskId, String taskCommentId, UpdateTaskCommentRequest updateTaskCommentRequest) throws NotFoundException {
-        return null;
+        Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        TaskComment taskComment = this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
+        taskComment.setContent(updateTaskCommentRequest.getContent());
+        taskComment.setMentions(updateTaskCommentRequest.getMentions());
+        taskComment.setResources(updateTaskCommentRequest.getResourceLinks());
+        taskComment = this.taskCommentRepository.save(taskComment);
+        TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
+        this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.UPDATE_COMMENT, taskId);
+        return taskCommentResponse;
     }
 
     @Override
     public String deleteComment(String taskId, String taskCommentId) throws NotFoundException {
         this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
-        this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
+        TaskComment taskComment = this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
         this.taskCommentRepository.deleteById(taskCommentId);
+        TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
+        this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.DELETE_COMMENT, taskId);
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -101,7 +183,9 @@ public class TaskCommentServiceImpl implements TaskCommentService {
         TaskComment newTaskComment = this.buildTaskComment(createTaskCommentRequest, task, user);
         newTaskComment.setParentId(taskCommentParent.getId());
         newTaskComment = this.taskCommentRepository.save(newTaskComment);
-        return this.mapTaskCommentToTaskCommentResponse(newTaskComment);
+        TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(newTaskComment);
+        this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.COMMENT_TASK, taskId);
+        return taskCommentResponse;
     }
 
     @Override

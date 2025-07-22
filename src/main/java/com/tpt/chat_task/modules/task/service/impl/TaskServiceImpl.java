@@ -2,6 +2,11 @@ package com.tpt.chat_task.modules.task.service.impl;
 
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.task.TaskMemberRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.resource.service.ResourceService;
@@ -35,6 +40,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -65,17 +71,20 @@ public class TaskServiceImpl implements TaskService {
 
     private final ResourceService resourceService;
 
+    private final RabbitTemplate rabbitTemplate;
+
     @Override
     public TaskDetailResponse addNewTask(String taskGroupId, CreateTaskRequest createTaskRequest) throws NotFoundException {
-        this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
+        TaskGroup taskGroup = this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
 
         Task task = Task.builder()
                 .title(createTaskRequest.getTitle())
+                .taskGroup(taskGroup)
                 .build();
 
         task = taskRepository.save(task);
 
-        return null;
+        return mapTaskToResponse(task);
     }
 
     private List<LabelDetailResponse> mapToLabelDetailResponse(List<Label> labels) {
@@ -130,7 +139,7 @@ public class TaskServiceImpl implements TaskService {
                 .id(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())
-                .labels(this.mapToLabelDetailResponse(task.getLabels()))
+                .labels(task.getLabels() == null ? Collections.emptyList() : this.mapToLabelDetailResponse(task.getLabels()))
                 .checklists(task.getChecklists() == null ? Collections.emptyList()
                         : this.mapCheckListsToCheckListResponse(task.getChecklists()))
                 .members(task.getUsers() == null ? Collections.emptyList()
@@ -193,6 +202,19 @@ public class TaskServiceImpl implements TaskService {
         List<User> users = task.getUsers();
         users.add(user);
         task.setUsers(users);
+        this.taskRepository.save(task);
+
+        this.rabbitTemplate.convertAndSend(
+                RabbitMQSchema.TASK_ADD_MEMBER_EXCHANGE,
+                RabbitMQSchema.TASK_ADD_MEMBER_ROUTING_KEY,
+                RabbitMQRequest.builder()
+                        .routingKey(RabbitMQSchema.TASK_ADD_MEMBER_ROUTING_KEY)
+                        .exchangeType(EXCHANGE_TYPE.DIRECT)
+                        .payload(TaskMemberRequest.builder().taskId(taskId).userId(userId).build())
+                        .userId(userId)
+                        .build()
+        );
+
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
@@ -203,6 +225,19 @@ public class TaskServiceImpl implements TaskService {
         List<User> users = task.getUsers();
         users.remove(user);
         task.setUsers(users);
+        this.taskRepository.save(task);
+
+        this.rabbitTemplate.convertAndSend(
+                RabbitMQSchema.TASK_DELETE_MEMBER_EXCHANGE,
+                RabbitMQSchema.TASK_DELETE_MEMBER_ROUTING_KEY,
+                RabbitMQRequest.builder()
+                        .routingKey(RabbitMQSchema.TASK_DELETE_MEMBER_ROUTING_KEY)
+                        .exchangeType(EXCHANGE_TYPE.DIRECT)
+                        .payload(TaskMemberRequest.builder().taskId(taskId).userId(userId).build())
+                        .userId(userId)
+                        .build()
+        );
+
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 

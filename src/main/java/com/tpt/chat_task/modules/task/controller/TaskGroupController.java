@@ -63,7 +63,7 @@ public class TaskGroupController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @DeleteMapping("/{boardId}/group-tasks/{groupTaskId}/change-position/{newPosition}")
+    @PatchMapping("/{boardId}/group-tasks/{groupTaskId}/change-position/{newPosition}")
     public ResponseEntity<?> changeTaskGroupPosition(
             @PathVariable String boardId,
             @PathVariable String groupTaskId,
