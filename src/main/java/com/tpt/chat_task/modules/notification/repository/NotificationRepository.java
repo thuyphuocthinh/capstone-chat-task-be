@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,13 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     LIMIT 1
     """, nativeQuery = true)
     Optional<Notification> findReactionNotification(@Param("type") NOTIFICATION_TYPE type, @Param("messageId") String messageId, @Param("userId") String userId);
+
+    @Query(value = """
+    SELECT * FROM notifications
+    WHERE type = :type
+      AND data ->> 'id' = :taskId
+      AND data ->> 'senderId' = :userId
+    LIMIT 1
+    """, nativeQuery = true)
+    Optional<Notification> findMentionTaskNotification(@Param("type") NOTIFICATION_TYPE type, @Param("taskId") String taskId, @Param("userId") String userId);
 }

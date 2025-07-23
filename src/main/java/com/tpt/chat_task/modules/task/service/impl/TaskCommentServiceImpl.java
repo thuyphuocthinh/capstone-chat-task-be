@@ -12,7 +12,10 @@ import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
 import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
+import com.tpt.chat_task.modules.notification.constant.NotificationError;
+import com.tpt.chat_task.modules.notification.entity.Notification;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
+import com.tpt.chat_task.modules.notification.repository.NotificationRepository;
 import com.tpt.chat_task.modules.task.constant.TaskCommentError;
 import com.tpt.chat_task.modules.task.constant.TaskError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskCommentRequest;
@@ -59,6 +62,8 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     private final RabbitTemplate rabbitTemplate;
 
     private final ExecutorService executorService;
+
+    private final NotificationRepository notificationRepository;
 
     public TaskComment buildTaskComment(CreateTaskCommentRequest createTaskCommentRequest, Task task, User user) {
         TaskComment taskComment = new TaskComment();
@@ -171,6 +176,20 @@ public class TaskCommentServiceImpl implements TaskCommentService {
         this.taskCommentRepository.deleteById(taskCommentId);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
         this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.DELETE_COMMENT, taskId);
+
+        executorService.execute(() -> {
+            Notification notification = this.notificationRepository.findReactionNotification(
+                    NOTIFICATION_TYPE.MENTION,
+                    taskId,
+                    taskComment.getSender().getId()
+            ).orElseThrow(() -> new NotFoundException(NotificationError.NOTIFICATION_NOT_FOUND));
+            rabbitTemplate.convertAndSend(
+                    RabbitMQSchema.NOTIFICATION_DELETE_EXCHANGE,
+                    RabbitMQSchema.NOTIFICATION_DELETE_ROUTING_KEY,
+                    notification.getId()
+            );
+        });
+
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
