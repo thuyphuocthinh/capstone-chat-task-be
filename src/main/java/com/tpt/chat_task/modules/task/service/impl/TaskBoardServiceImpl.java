@@ -213,7 +213,8 @@ public class TaskBoardServiceImpl implements TaskBoardService {
         return mapTaskBoardToResponse(taskBoard);
     }
 
-    private boolean isMemberTaskBoard(TaskBoard taskBoard, String userId) throws NotFoundException {
+    @Override
+    public boolean isMemberTaskBoard(TaskBoard taskBoard, String userId) throws NotFoundException {
         List<User> userList = taskBoard.getUsers();
         if(userList.isEmpty()) {
             return false;

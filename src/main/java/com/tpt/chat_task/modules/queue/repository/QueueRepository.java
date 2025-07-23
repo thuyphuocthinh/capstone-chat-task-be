@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -28,6 +29,22 @@ public interface QueueRepository extends JpaRepository<Queue, String> {
         WHERE queue_name = :queueName
     """, nativeQuery = true)
     void deleteAllByQueueName(@Param("queueName") String queueName);
+
+
+    @Modifying
+    @Query(value = """
+        DELETE FROM queues
+        WHERE queue_name = :queueName
+            AND listener_id = :listenerId
+            AND exchange_name = :exchange
+            AND routing_key = :routingKey
+    """, nativeQuery = true)
+    void deleteByQueueNameListenerRoutingKeyExchange(
+            @Param("queueName") String queueName,
+            @Param("listenerId") String listenerId,
+            @Param("exchange") String exchange,
+            @Param("routingKey") String routingKey
+    );
 
     @Query(value = """
         SELECT COUNT(*) > 0

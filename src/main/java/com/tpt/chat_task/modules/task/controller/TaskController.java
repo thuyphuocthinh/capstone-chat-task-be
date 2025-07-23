@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.task.controller;
 
+import com.tpt.chat_task.common.constant.AppConstant;
 import com.tpt.chat_task.common.constant.JwtConstant;
 import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMessage;
@@ -27,10 +28,12 @@ public class TaskController {
     @PostMapping("/tasks")
     public ResponseEntity<?> addNewTask(
             @PathVariable String groupTaskId,
-            @RequestBody @Valid CreateTaskRequest createTaskRequest
+            @RequestBody @Valid CreateTaskRequest createTaskRequest,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) throws NotFoundException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(taskService.addNewTask(groupTaskId, createTaskRequest))
+                .data(taskService.addNewTask(accessToken, groupTaskId, createTaskRequest))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -72,20 +75,19 @@ public class TaskController {
     @GetMapping("/tasks")
     public ResponseEntity<?> getTasksByGroupId(
             @PathVariable String groupTaskId,
-            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken,
+            @RequestParam(name = "page", required = false, defaultValue = AppConstant.PAGE) Integer page,
+            @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging
     ) throws NotFoundException {
         String accessToken = bearerToken.substring(7);
-        SuccessResponse response = SuccessResponse.builder()
-                .data(this.taskService.getListTasksByGroupId(accessToken, groupTaskId))
-                .build();
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(this.taskService.getListTasksByGroupId(accessToken, groupTaskId, page, paging), HttpStatus.OK);
     }
 
     @PostMapping("/tasks/{taskId}/members/{userId}")
     public ResponseEntity<?> addMemberToTask(
             @PathVariable String taskId,
             @PathVariable String userId
-    ) throws NotFoundException {
+    ) throws NotFoundException, BadRequestException {
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
                 .message(taskService.addMemberToTask(taskId, userId))
                 .build();
@@ -96,7 +98,7 @@ public class TaskController {
     public ResponseEntity<?> removeMemberFromTask(
             @PathVariable String taskId,
             @PathVariable String userId
-    ) throws NotFoundException {
+    ) throws NotFoundException, BadRequestException {
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
                 .message(taskService.removeMemberFromTask(taskId, userId))
                 .build();

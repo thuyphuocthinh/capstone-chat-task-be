@@ -1,5 +1,7 @@
 package com.tpt.chat_task.modules.task.service.impl;
 
+import com.tpt.chat_task.common.constant.Metadata;
+import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
@@ -11,6 +13,7 @@ import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.resource.service.ResourceService;
 import com.tpt.chat_task.modules.task.constant.LabelError;
+import com.tpt.chat_task.modules.task.constant.TaskBoardError;
 import com.tpt.chat_task.modules.task.constant.TaskError;
 import com.tpt.chat_task.modules.task.constant.TaskGroupError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskRequest;
@@ -27,6 +30,7 @@ import com.tpt.chat_task.modules.task.repository.LabelRepository;
 import com.tpt.chat_task.modules.task.repository.TaskGroupRepository;
 import com.tpt.chat_task.modules.task.repository.TaskRepository;
 import com.tpt.chat_task.modules.task.service.CheckListService;
+import com.tpt.chat_task.modules.task.service.TaskBoardService;
 import com.tpt.chat_task.modules.task.service.TaskService;
 import com.tpt.chat_task.modules.user.constant.UserError;
 import com.tpt.chat_task.modules.user.entity.User;
@@ -41,6 +45,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -73,17 +80,19 @@ public class TaskServiceImpl implements TaskService {
 
     private final RabbitTemplate rabbitTemplate;
 
-    @Override
-    public TaskDetailResponse addNewTask(String taskGroupId, CreateTaskRequest createTaskRequest) throws NotFoundException {
-        TaskGroup taskGroup = this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
+    private final TaskBoardService taskBoardService;
 
+    @Override
+    public TaskDetailResponse addNewTask(String token, String taskGroupId, CreateTaskRequest createTaskRequest) throws NotFoundException {
+        TaskGroup taskGroup = this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
+        String userId = this.jwtProvider.getIdFromToken(token);
+        User creator = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Task task = Task.builder()
                 .title(createTaskRequest.getTitle())
                 .taskGroup(taskGroup)
+                .users(Collections.singletonList(creator))
                 .build();
-
         task = taskRepository.save(task);
-
         return mapTaskToResponse(task);
     }
 
@@ -189,21 +198,45 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<TaskDetailResponse> getListTasksByGroupId(String token, String taskGroupId) throws NotFoundException {
+    public SuccessResponseWithMetadata<?> getListTasksByGroupId(String token, String taskGroupId, Integer page, Integer paging) throws NotFoundException {
         String userId = this.jwtProvider.getIdFromToken(token);
-        List<Task> tasks = this.taskRepository.findAllByUserIdAndGroupId(userId, taskGroupId);
-        return tasks.stream().map(task -> this.mapTaskToResponse(task)).collect(Collectors.toList());
+
+        Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
+        Page<Task> tasksPage = this.taskRepository.findAllByUserIdAndGroupId(userId, taskGroupId, pageable);
+        List<Task> taskList = tasksPage.getContent();
+
+        List<TaskDetailResponse> taskDetailResponses = taskList.stream().map(task -> this.mapTaskToResponse(task)).collect(Collectors.toList());
+
+        Metadata metadata = Metadata.builder()
+                .currentPage(tasksPage.getNumber() + 1)
+                .totalPages(tasksPage.getTotalPages())
+                .totalElements((int) tasksPage.getTotalElements())
+                .pageSize(tasksPage.getSize())
+                .build();
+
+        return SuccessResponseWithMetadata.builder()
+                .metadata(metadata)
+                .data(taskDetailResponses)
+                .build();
     }
 
     @Override
-    public String addMemberToTask(String taskId, String userId) throws NotFoundException {
+    public String addMemberToTask(String taskId, String userId) throws NotFoundException, BadRequestException {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+
+        if(this.taskBoardService.isMemberTaskBoard(task.getTaskGroup().getTaskBoard(), userId)) {
+            throw new BadRequestException(TaskBoardError.USER_NOT_IN_TASK_BOARD);
+        }
+
+        if(this.isMemberOfTask(taskId, userId)) {
+            throw new BadRequestException(TaskError.USER_ALREADY_IN_TASK);
+        }
+
         List<User> users = task.getUsers();
         users.add(user);
         task.setUsers(users);
         this.taskRepository.save(task);
-
         this.rabbitTemplate.convertAndSend(
                 RabbitMQSchema.TASK_ADD_MEMBER_EXCHANGE,
                 RabbitMQSchema.TASK_ADD_MEMBER_ROUTING_KEY,
@@ -214,14 +247,22 @@ public class TaskServiceImpl implements TaskService {
                         .userId(userId)
                         .build()
         );
-
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
     @Override
-    public String removeMemberFromTask(String taskId, String userId) throws NotFoundException {
+    public String removeMemberFromTask(String taskId, String userId) throws NotFoundException, BadRequestException {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+
+        if(this.taskBoardService.isMemberTaskBoard(task.getTaskGroup().getTaskBoard(), userId)) {
+            throw new BadRequestException(TaskBoardError.USER_NOT_IN_TASK_BOARD);
+        }
+
+        if(!this.isMemberOfTask(taskId, userId)) {
+            throw new BadRequestException(TaskError.USER_NOT_EXIST_IN_TASK);
+        }
+
         List<User> users = task.getUsers();
         users.remove(user);
         task.setUsers(users);
@@ -342,5 +383,20 @@ public class TaskServiceImpl implements TaskService {
         this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         return this.mapTaskToResponse(task);
+    }
+
+    @Override
+    public boolean isMemberOfTask(String taskId, String userID) throws NotFoundException, BadRequestException {
+        Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        User user = userRepository.findById(userID).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
+
+        List<User> users = task.getUsers();
+        for(User user1 : users) {
+            if(user1.getId().equals(user.getId())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

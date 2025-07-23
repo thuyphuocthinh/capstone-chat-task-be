@@ -6,6 +6,7 @@ import com.tpt.chat_task.modules.task.dto.response.TaskBoardDetailResponse;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskBoardRequest;
 import com.tpt.chat_task.modules.task.dto.response.TaskBoardResponse;
 import com.tpt.chat_task.modules.task.dto.response.TaskGroupDetailResponse;
+import com.tpt.chat_task.modules.task.entity.TaskBoard;
 import com.tpt.chat_task.modules.workspace.dto.response.WorkspaceMemberResponse;
 import org.apache.coyote.BadRequestException;
 
@@ -22,4 +23,5 @@ public interface TaskBoardService {
     public String deleteMemberFromTaskBoard(String token, String workspaceId, String taskBoardId, String userId) throws NotFoundException, BadRequestException;
     public List<WorkspaceMemberResponse> getListMembers(String workspaceId, String taskBoardId) throws NotFoundException;
     public List<TaskBoardResponse> getListTaskBoardsByWorkspaceAndUser(String workspaceId, String token) throws NotFoundException;
+    public boolean isMemberTaskBoard(TaskBoard taskBoard, String userId) throws NotFoundException;
 }

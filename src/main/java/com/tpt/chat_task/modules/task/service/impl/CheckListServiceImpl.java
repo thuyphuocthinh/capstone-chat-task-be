@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,7 @@ public class CheckListServiceImpl implements CheckListService {
                 .id(checkList.getId())
                 .title(checkList.getTitle())
                 .items(
+                        checkList.getChecklistItems() == null ? Collections.emptyList() :
                         checkList.getChecklistItems().stream().map(item -> mapCheckListItemToResponse(item)).toList()
                 )
                 .build();
@@ -98,7 +100,6 @@ public class CheckListServiceImpl implements CheckListService {
         int totalItems = checkList.getChecklistItems().size();
 
         CheckListItem checkListItem = CheckListItem.builder()
-                .id(checkListId)
                 .title(createCheckListItemRequest.getTitle())
                 .checklist(checkList)
                 .orderIndex(totalItems++)
