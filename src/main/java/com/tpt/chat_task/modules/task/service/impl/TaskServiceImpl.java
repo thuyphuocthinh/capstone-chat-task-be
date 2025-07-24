@@ -88,6 +88,7 @@ public class TaskServiceImpl implements TaskService {
                 .title(createTaskRequest.getTitle())
                 .taskGroup(taskGroup)
                 .users(Collections.singletonList(creator))
+                .orderIndex(taskGroup.getTasks().size() + 1)
                 .build();
         task = taskRepository.save(task);
         return mapTaskToResponse(task);
@@ -295,6 +296,9 @@ public class TaskServiceImpl implements TaskService {
     public String changeTaskPositionInSameGroup(String taskGroupId, String taskId, int newPosition) throws NotFoundException, BadRequestException {
         TaskGroup taskGroup = this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        if(!this.checkTaskInGroup(taskGroup, task)) {
+            throw new BadRequestException(TaskGroupError.TASK_NOT_IN_GROUP);
+        }
         int totalTasks = taskGroup.getTasks().size();
         int oldPosition = task.getOrderIndex();
         if(oldPosition == newPosition) {
@@ -311,6 +315,16 @@ public class TaskServiceImpl implements TaskService {
             this.taskRepository.incrementOrderIndexesInRange(taskId, newPosition, oldPosition - 1);
         }
         return RESPONSE_STATUS.SUCCESS.toString();
+    }
+
+    private boolean checkTaskInGroup(TaskGroup taskGroup, Task task) {
+        List<Task> tasks = taskGroup.getTasks();
+        for(Task t : tasks) {
+            if(t.getId().equals(task.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
