@@ -35,9 +35,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query(value = """
         UPDATE tasks
         SET order_index = order_index - 1
-        WHERE task_id = :task_id AND order_index BETWEEN :start and :end
+        WHERE id = :taskId AND order_index BETWEEN :start and :end
     """, nativeQuery = true)
-    void decrementOrderIndexesInRange(@Param("taskBoardId") String taskId,
+    void decrementOrderIndexesInRange(@Param("taskId") String taskId,
                                       @Param("start") int start,
                                       @Param("end") int end);
 
@@ -45,9 +45,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query(value = """
         UPDATE tasks
         SET order_index = order_index + 1
-        WHERE task_id = :task_id AND order_index BETWEEN :start and :end
+        WHERE id = :taskId AND order_index BETWEEN :start and :end
     """, nativeQuery = true)
-    void incrementOrderIndexesInRange(@Param("taskBoardId") String taskId,
+    void incrementOrderIndexesInRange(@Param("taskId") String taskId,
                                       @Param("start") int start,
                                       @Param("end") int end);
 }

@@ -295,25 +295,21 @@ public class TaskServiceImpl implements TaskService {
     public String changeTaskPositionInSameGroup(String taskGroupId, String taskId, int newPosition) throws NotFoundException, BadRequestException {
         TaskGroup taskGroup = this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
-
         int totalTasks = taskGroup.getTasks().size();
         int oldPosition = task.getOrderIndex();
-
         if(oldPosition == newPosition) {
             return RESPONSE_STATUS.SUCCESS.toString();
         }
-
         if(oldPosition > totalTasks || oldPosition < 0) {
             throw new BadRequestException(TaskError.INVALID_TASK_POSITION);
         }
-
+        task.setOrderIndex(newPosition);
         if(newPosition > oldPosition) {
             this.taskRepository.decrementOrderIndexesInRange(taskId, oldPosition + 1, newPosition);
         }
         else {
             this.taskRepository.incrementOrderIndexesInRange(taskId, newPosition, oldPosition - 1);
         }
-
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 
