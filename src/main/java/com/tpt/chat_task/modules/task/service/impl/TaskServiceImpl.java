@@ -5,7 +5,6 @@ import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
-import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.task.TaskMemberRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
@@ -50,7 +49,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -61,7 +59,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
-
     private final TaskRepository taskRepository;
 
     private final TaskGroupRepository taskGroupRepository;
@@ -377,11 +374,17 @@ public class TaskServiceImpl implements TaskService {
     public TaskDetailResponse addNewFiles(String taskId, List<MultipartFile> files) throws NotFoundException, IOException {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         List<Resource> resources = this.resourceService.uploadMultipleFiles(files);
-        task.setResources(resources);
+        List<Resource> taskResources = task.getResources();
+        taskResources.addAll(resources);
+        for (Resource resource : resources) {
+            resource.setTask(task);
+        }
+        task = this.taskRepository.save(task);
         return this.mapTaskToResponse(task);
     }
 
     @Override
+    @Transactional
     public TaskDetailResponse getDetailedTask(String taskGroupId, String taskId) throws NotFoundException {
         this.taskGroupRepository.findById(taskGroupId).orElseThrow(() -> new NotFoundException(TaskGroupError.TASK_GROUP_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
