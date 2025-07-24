@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @AllArgsConstructor
@@ -18,6 +19,8 @@ public class TaskDetailResponse {
     private String id;
     private String title;
     private String description;
+    private LocalDateTime startDate;
+    private LocalDateTime dueDate;
     private List<LabelDetailResponse> labels;
     private List<CheckListResponse> checklists;
     private List<WorkspaceMemberResponse> members;

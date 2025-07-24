@@ -96,9 +96,7 @@ public class CheckListServiceImpl implements CheckListService {
     @Override
     public CheckListItemResponse addNewCheckListItem(String checkListId, CreateCheckListItemRequest createCheckListItemRequest) throws NotFoundException {
         CheckList checkList = this.checkListRepository.findById(checkListId).orElseThrow(() -> new NotFoundException(CheckListError.CHECK_LIST_NOT_FOUND));
-
         int totalItems = checkList.getChecklistItems().size();
-
         CheckListItem checkListItem = CheckListItem.builder()
                 .title(createCheckListItemRequest.getTitle())
                 .checklist(checkList)
@@ -106,7 +104,6 @@ public class CheckListServiceImpl implements CheckListService {
                 .build();
 
         checkListItem = checkListItemRepository.save(checkListItem);
-
         return this.mapCheckListItemToResponse(checkListItem);
     }
 
@@ -114,15 +111,11 @@ public class CheckListServiceImpl implements CheckListService {
     public CheckListItemResponse updateCheckListItem(String checkListId, String checkListItemId, UpdateCheckListItemRequest request) throws NotFoundException {
         this.checkListRepository.findById(checkListId).orElseThrow(() -> new NotFoundException(CheckListError.CHECK_LIST_NOT_FOUND));
         CheckListItem item = this.checkListItemRepository.findById(checkListItemId).orElseThrow(() -> new NotFoundException(CheckListItemError.CHECK_LIST_ITEM_NOT_FOUND));
-
         String title = request.getTitle();
-
         if (title != null) {
             item.setTitle(title);
         }
-
         item = checkListItemRepository.save(item);
-
         return mapCheckListItemToResponse(item);
     }
 
@@ -173,25 +166,19 @@ public class CheckListServiceImpl implements CheckListService {
     public String changeCheckListItemPosition(String checkListId, String checkListItemId, int newPosition) throws NotFoundException, BadRequestException {
         CheckList checkList = this.checkListRepository.findById(checkListId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         CheckListItem item = this.checkListItemRepository.findById(checkListItemId).orElseThrow(() -> new NotFoundException(CheckListItemError.CHECK_LIST_ITEM_NOT_FOUND));
-
         int totalItems = checkList.getChecklistItems().size();
-
         if (newPosition > totalItems || newPosition < 0) {
             throw new BadRequestException(CheckListItemError.CHECK_LIST_ITEM_POSITION_INVALID);
         }
-
         if (newPosition == checkList.getOrderIndex()) {
             return RESPONSE_STATUS.SUCCESS.toString();
         }
-
         int oldPosition = checkList.getOrderIndex();
-
         if(newPosition > oldPosition) {
             this.checkListItemRepository.decrementOrderIndexesInRange(checkListId, oldPosition + 1, newPosition);
         } else {
             this.checkListItemRepository.incrementOrderIndexesInRange(checkListId, newPosition, oldPosition - 1);
         }
-
         return RESPONSE_STATUS.SUCCESS.toString();
     }
 

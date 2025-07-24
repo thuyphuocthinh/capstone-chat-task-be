@@ -148,6 +148,8 @@ public class TaskServiceImpl implements TaskService {
                 .id(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())
+                .dueDate(task.getDueDate())
+                .startDate(task.getStartDate())
                 .labels(task.getLabels() == null ? Collections.emptyList() : this.mapToLabelDetailResponse(task.getLabels()))
                 .checklists(task.getChecklists() == null ? Collections.emptyList()
                         : this.mapCheckListsToCheckListResponse(task.getChecklists()))
@@ -198,6 +200,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public SuccessResponseWithMetadata<?> getListTasksByGroupId(String token, String taskGroupId, Integer page, Integer paging) throws NotFoundException {
         String userId = this.jwtProvider.getIdFromToken(token);
 
