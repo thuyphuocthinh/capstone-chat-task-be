@@ -60,9 +60,11 @@ public class CheckListServiceImpl implements CheckListService {
     public CheckListResponse addNewCheckList(String taskId, CreateCheckListRequest createCheckListRequest) throws NotFoundException {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
 
+        int totalCheckLists = task.getChecklists().size();
         CheckList checkList = CheckList.builder()
                 .task(task)
                 .title(createCheckListRequest.getTitle())
+                .orderIndex(totalCheckLists + 1)
                 .build();
         checkList = checkListRepository.save(checkList);
 
