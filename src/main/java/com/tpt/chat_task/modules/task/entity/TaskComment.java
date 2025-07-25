@@ -29,8 +29,8 @@ public class TaskComment {
     @Column(columnDefinition = "VARCHAR(36)", updatable = false, nullable = false)
     private String id;
 
-    @Column(length = 36, name = "thread_root_id")
-    private String threadRootId;
+    @Column(length = 1, name = "is_thread_root")
+    private boolean isThreadRoot = false;
 
     @Column(length = 36, name = "parent_id")
     private String parentId;

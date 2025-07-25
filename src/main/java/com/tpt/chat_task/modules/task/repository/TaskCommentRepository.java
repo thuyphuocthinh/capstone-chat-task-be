@@ -35,12 +35,28 @@ public interface TaskCommentRepository extends JpaRepository<TaskComment, String
     );
 
     @Query("""
+    SELECT t FROM TaskComment t
+    WHERE t.task.taskGroup.taskBoard.workspace.id = :workspaceId 
+    AND (t.parentId IS NOT NULL OR t.isThreadRoot = true)
+    ORDER BY t.createdAt DESC
+    """)
+        Page<TaskComment> findAllTaskCommentsByWorkspace(
+                @Param("workspaceId") String workspaceId,
+                Pageable pageable
+        );
+
+    @Query("""
         SELECT t FROM TaskComment t
-        WHERE t.task.taskGroup.taskBoard.workspace.id = :workspaceId
+        WHERE t.task.taskGroup.taskBoard.workspace.id = :workspaceId 
+        AND t.isThreadRoot = true
         ORDER BY t.createdAt DESC
     """)
-    Page<TaskComment> findAllTaskCommentsByWorkspace(
-            @Param("workspaceId") String workspaceId,
-            Pageable pageable
-    );
+    Page<TaskComment> findThreadRootsByWorkspace(@Param("workspaceId") String workspaceId, Pageable pageable);
+
+    @Query("""
+        SELECT t FROM TaskComment t
+        WHERE t.parentId IN :parentIds
+    """)
+    List<TaskComment> findRepliesByParentIds(@Param("parentIds") List<String> parentIds);
+
 }
