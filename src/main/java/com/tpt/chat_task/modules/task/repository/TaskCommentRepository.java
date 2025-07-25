@@ -15,7 +15,7 @@ import java.util.List;
 public interface TaskCommentRepository extends JpaRepository<TaskComment, String> {
     @Query("""
         SELECT t FROM TaskComment t
-        WHERE t.task.id = :taskId
+        WHERE t.task.id = :taskId AND t.parentId IS NULL
         ORDER BY t.createdAt DESC
     """)
     Page<TaskComment> findAllCommentsByTask(
