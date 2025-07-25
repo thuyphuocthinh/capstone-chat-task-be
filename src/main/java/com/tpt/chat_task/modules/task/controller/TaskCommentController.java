@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 @RestController("/api/v1/tasks/{taskId}")
 @RequiredArgsConstructor
 public class TaskCommentController {
@@ -24,7 +26,7 @@ public class TaskCommentController {
             @PathVariable String taskId,
             @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken,
             @RequestBody @Valid CreateTaskCommentRequest request
-    ) {
+    ) throws IOException {
         String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskCommentService.addComment(accessToken, taskId, request))
@@ -61,7 +63,7 @@ public class TaskCommentController {
             @PathVariable String commentId,
             @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken,
             @RequestBody @Valid CreateTaskCommentRequest request
-    ) {
+    ) throws IOException {
         String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskCommentService.replyComment(accessToken, taskId, commentId, request))

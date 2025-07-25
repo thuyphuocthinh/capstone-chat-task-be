@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -15,6 +16,10 @@ import java.util.List;
 public class UpdateTaskCommentRequest {
     @NotBlank(message = "Comment content cannot be blank")
     private String content;
+
     private List<String> resourceLinks;
+
+    private List<MultipartFile> files;
+
     private List<String> mentions;
 }

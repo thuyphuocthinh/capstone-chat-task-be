@@ -15,6 +15,8 @@ import com.tpt.chat_task.modules.notification.constant.NotificationError;
 import com.tpt.chat_task.modules.notification.entity.Notification;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.repository.NotificationRepository;
+import com.tpt.chat_task.modules.resource.entity.Resource;
+import com.tpt.chat_task.modules.resource.service.ResourceService;
 import com.tpt.chat_task.modules.task.constant.TaskCommentError;
 import com.tpt.chat_task.modules.task.constant.TaskError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskCommentRequest;
@@ -36,7 +38,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,14 +67,18 @@ public class TaskCommentServiceImpl implements TaskCommentService {
 
     private final NotificationRepository notificationRepository;
 
-    public TaskComment buildTaskComment(CreateTaskCommentRequest createTaskCommentRequest, Task task, User user) {
+    private final ResourceService resourceService;
+
+    public TaskComment buildTaskComment(CreateTaskCommentRequest createTaskCommentRequest, Task task, User user, List<Resource> resources) {
         TaskComment taskComment = new TaskComment();
         String content = createTaskCommentRequest.getContent();
         List<String> mentions = createTaskCommentRequest.getMentions();
-        List<String> resourceLinks = createTaskCommentRequest.getResourceLinks();
+        if(resources != null && !resources.isEmpty()) {
+            List<String> resourceLinks = resources.stream().map(Resource::getLink).collect(Collectors.toList());
+            taskComment.setResources(resourceLinks);
+        }
         taskComment.setContent(content);
         taskComment.setMentions(mentions);
-        taskComment.setResources(resourceLinks);
         taskComment.setTask(task);
         taskComment.setSender(user);
         return taskComment;
@@ -87,11 +95,16 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
-    public TaskCommentResponse addComment(String token, String taskId, CreateTaskCommentRequest createTaskCommentRequest) throws NotFoundException {
+    public TaskCommentResponse addComment(String token, String taskId, CreateTaskCommentRequest createTaskCommentRequest) throws NotFoundException, IOException {
         String userId = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
-        TaskComment taskComment = this.buildTaskComment(createTaskCommentRequest, task, user);
+        List<Resource> resources = new ArrayList<>();
+        if(createTaskCommentRequest.getFiles() != null && createTaskCommentRequest.getFiles().size() > 0) {
+            List<MultipartFile> files = createTaskCommentRequest.getFiles();
+            resources = this.resourceService.uploadMultipleFiles(files);
+        }
+        TaskComment taskComment = this.buildTaskComment(createTaskCommentRequest, task, user, resources);
         taskComment = this.taskCommentRepository.save(taskComment);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
         this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.COMMENT_TASK, taskId);
@@ -155,12 +168,23 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
-    public TaskCommentResponse updateComment(String taskId, String taskCommentId, UpdateTaskCommentRequest updateTaskCommentRequest) throws NotFoundException {
+    public TaskCommentResponse updateComment(String taskId, String taskCommentId, UpdateTaskCommentRequest updateTaskCommentRequest) throws NotFoundException, IOException {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         TaskComment taskComment = this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
+
+        List<Resource> resources = new ArrayList<>();
+        if(updateTaskCommentRequest.getFiles() != null && updateTaskCommentRequest.getFiles().size() > 0) {
+            List<MultipartFile> files = updateTaskCommentRequest.getFiles();
+            resources = this.resourceService.uploadMultipleFiles(files);
+        }
+
+        if(resources.size() > 0) {
+            List<String> resourceLinks = resources.stream().map(Resource::getLink).collect(Collectors.toList());
+            taskComment.setResources(resourceLinks);
+        }
+
         taskComment.setContent(updateTaskCommentRequest.getContent());
         taskComment.setMentions(updateTaskCommentRequest.getMentions());
-        taskComment.setResources(updateTaskCommentRequest.getResourceLinks());
         taskComment = this.taskCommentRepository.save(taskComment);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
         this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.UPDATE_COMMENT, taskId);
@@ -192,12 +216,19 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
-    public TaskCommentResponse replyComment(String token, String taskId, String taskCommentParentId, CreateTaskCommentRequest createTaskCommentRequest) throws NotFoundException {
+    public TaskCommentResponse replyComment(String token, String taskId, String taskCommentParentId, CreateTaskCommentRequest createTaskCommentRequest) throws NotFoundException, IOException {
         String userId = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         TaskComment taskCommentParent = this.taskCommentRepository.findById(taskCommentParentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
-        TaskComment newTaskComment = this.buildTaskComment(createTaskCommentRequest, task, user);
+
+        List<Resource> resources = new ArrayList<>();
+        if(createTaskCommentRequest.getFiles() != null && createTaskCommentRequest.getFiles().size() > 0) {
+            List<MultipartFile> files = createTaskCommentRequest.getFiles();
+            resources = this.resourceService.uploadMultipleFiles(files);
+        }
+
+        TaskComment newTaskComment = this.buildTaskComment(createTaskCommentRequest, task, user, resources);
         newTaskComment.setParentId(taskCommentParent.getId());
         newTaskComment = this.taskCommentRepository.save(newTaskComment);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(newTaskComment);
