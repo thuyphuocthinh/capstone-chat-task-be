@@ -5,6 +5,7 @@ import com.tpt.chat_task.common.constant.JwtConstant;
 import com.tpt.chat_task.common.dto.SuccessResponse;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.modules.conversation.service.ChatService;
+import com.tpt.chat_task.modules.task.service.TaskCommentService;
 import com.tpt.chat_task.modules.unread.service.UnreadService;
 import com.tpt.chat_task.modules.workspace.dto.request.AddMemberRequest;
 import com.tpt.chat_task.modules.workspace.dto.request.ChangeRoleRequest;
@@ -28,6 +29,8 @@ public class WorkspaceController {
     private final UnreadService unreadService;
 
     private final ChatService chatService;
+
+    private final TaskCommentService taskCommentService;
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping
@@ -162,5 +165,14 @@ public class WorkspaceController {
     ) {
         String token = bearerToken.substring(7);
         return new ResponseEntity<>(this.chatService.getListThreadsOfWorkspace(token, workspaceId, paging, page), HttpStatus.OK);
+    }
+
+    @GetMapping("/{workspaceId}/task-threads")
+    public ResponseEntity<?> getListTaskThreads(
+            @PathVariable String workspaceId,
+            @RequestParam(name = "page", required = false, defaultValue = AppConstant.PAGE) Integer page,
+            @RequestParam(name = "paging", required = false, defaultValue = AppConstant.PAGING) Integer paging
+    ) {
+        return new ResponseEntity<>(this.taskCommentService.getThreadComments(workspaceId, page, paging), HttpStatus.OK);
     }
 }

@@ -16,7 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 
-@RestController("/api/v1/tasks/{taskId}")
+@RestController
+@RequestMapping("/api/v1/tasks/{taskId}")
 @RequiredArgsConstructor
 public class TaskCommentController {
     private final TaskCommentService taskCommentService;

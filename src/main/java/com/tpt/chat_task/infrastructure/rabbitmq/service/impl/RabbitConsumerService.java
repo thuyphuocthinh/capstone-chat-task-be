@@ -12,6 +12,7 @@ import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
+import com.tpt.chat_task.modules.task.dto.response.TaskCommentResponse;
 import com.tpt.chat_task.modules.task.dto.response.TaskDetailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -72,9 +73,9 @@ public class RabbitConsumerService {
         String queueName = message.getMessageProperties().getConsumerQueue();
         try {
             // listen from queues of task module
-            TaskDetailResponse payload = objectMapper.convertValue(
+            TaskCommentResponse payload = objectMapper.convertValue(
                     rabbitMQRequest.getPayload(),
-                    TaskDetailResponse.class
+                    TaskCommentResponse.class
             );
             String[] splits = queueName.split("\\.");
             if(splits.length == 3) {

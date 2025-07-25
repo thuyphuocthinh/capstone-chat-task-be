@@ -21,6 +21,7 @@ import com.tpt.chat_task.modules.task.constant.TaskCommentError;
 import com.tpt.chat_task.modules.task.constant.TaskError;
 import com.tpt.chat_task.modules.task.dto.request.CreateTaskCommentRequest;
 import com.tpt.chat_task.modules.task.dto.request.UpdateTaskCommentRequest;
+import com.tpt.chat_task.modules.task.dto.response.TaskCommentReplyResponse;
 import com.tpt.chat_task.modules.task.dto.response.TaskCommentResponse;
 import com.tpt.chat_task.modules.task.entity.Task;
 import com.tpt.chat_task.modules.task.entity.TaskComment;
@@ -32,6 +33,7 @@ import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
@@ -77,8 +79,10 @@ public class TaskCommentServiceImpl implements TaskCommentService {
             List<String> resourceLinks = resources.stream().map(Resource::getLink).collect(Collectors.toList());
             taskComment.setResources(resourceLinks);
         }
+        if(mentions != null && !mentions.isEmpty()) {
+            taskComment.setMentions(mentions);
+        }
         taskComment.setContent(content);
-        taskComment.setMentions(mentions);
         taskComment.setTask(task);
         taskComment.setSender(user);
         return taskComment;
@@ -123,7 +127,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                             PUSH_NOTIFICATION_TYPE.TASK
                     )
             );
-            if(!taskCommentResponse.getMentions().isEmpty()) {
+            if(taskCommentResponse.getMentions() != null && !taskCommentResponse.getMentions().isEmpty()) {
                 List<String> mentions = taskCommentResponse.getMentions();
                 for(String mentionUserId : mentions) {
                     this.pushToNotificationQueueAndDatabase(taskCommentResponse, mentionUserId);
@@ -216,6 +220,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
+    @Transactional
     public TaskCommentResponse replyComment(String token, String taskId, String taskCommentParentId, CreateTaskCommentRequest createTaskCommentRequest) throws NotFoundException, IOException {
         String userId = this.jwtProvider.getIdFromToken(token);
         User user = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
@@ -228,9 +233,14 @@ public class TaskCommentServiceImpl implements TaskCommentService {
             resources = this.resourceService.uploadMultipleFiles(files);
         }
 
+        if(!taskCommentParent.isThreadRoot()) {
+            taskCommentParent.setThreadRoot(true);
+        }
+
         TaskComment newTaskComment = this.buildTaskComment(createTaskCommentRequest, task, user, resources);
         newTaskComment.setParentId(taskCommentParent.getId());
         newTaskComment = this.taskCommentRepository.save(newTaskComment);
+        this.taskCommentRepository.save(taskCommentParent);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(newTaskComment);
         this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.COMMENT_TASK, taskId);
         return taskCommentResponse;
@@ -283,35 +293,58 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
+    @Transactional
     public SuccessResponseWithMetadata getThreadComments(String workspaceId, Integer page, Integer paging) throws NotFoundException {
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
 
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
-        Page<TaskComment> taskCommentPage = this.taskCommentRepository.findAllTaskCommentsByWorkspace(workspaceId, pageable);
-        List<TaskComment> taskComments = taskCommentPage.getContent();
+        Page<TaskComment> threadRootPage = taskCommentRepository.findThreadRootsByWorkspace(workspaceId, pageable);
+        List<TaskComment> threadRoots = threadRootPage.getContent();
 
-        Map<String, List<TaskComment>> threads = taskComments.stream()
-                .collect(Collectors.groupingBy(tc -> tc.getParentId() == null ? tc.getId() : tc.getParentId()));
+        List<String> threadRootIds = threadRoots.stream()
+                .map(TaskComment::getId)
+                .collect(Collectors.toList());
 
-        List<TaskCommentResponse> taskCommentResponses = new ArrayList<>();
+        List<TaskComment> replies = threadRootIds.isEmpty()
+                ? List.of()
+                : taskCommentRepository.findRepliesByParentIds(threadRootIds);
 
-        for(Map.Entry<String, List<TaskComment>> entry : threads.entrySet()) {
-            List<TaskComment> commentsInThread = entry.getValue();
-            for(TaskComment taskComment : commentsInThread) {
-                taskCommentResponses.add(this.mapTaskCommentToTaskCommentResponse(taskComment));
-            }
+        Map<String, List<TaskComment>> replyMap = replies.stream()
+                .collect(Collectors.groupingBy(TaskComment::getParentId));
+
+        List<TaskCommentReplyResponse> responses = new ArrayList<>();
+
+        for (TaskComment root : threadRoots) {
+            List<TaskComment> children = replyMap.getOrDefault(root.getId(), new ArrayList<>());
+
+            List<TaskCommentResponse> replyResponses = children.stream()
+                    .map(this::mapTaskCommentToTaskCommentResponse)
+                    .collect(Collectors.toList());
+
+            TaskCommentReplyResponse replyResponse = TaskCommentReplyResponse.builder()
+                    .id(root.getId())
+                    .content(root.getContent())
+                    .mentions(root.getMentions())
+                    .files(root.getResources())
+                    .senderId(root.getSender().getId())
+                    .taskCommentResponses(replyResponses)
+                    .build();
+
+            responses.add(replyResponse);
         }
 
+
+
         Metadata metadata = Metadata.builder()
-                .currentPage(taskCommentPage.getNumber() + 1)
-                .totalPages(taskCommentPage.getTotalPages())
-                .totalElements((int) taskCommentPage.getTotalElements())
-                .pageSize(taskCommentPage.getSize())
+                .currentPage(threadRootPage.getNumber() + 1)
+                .totalPages(threadRootPage.getTotalPages())
+                .totalElements((int) threadRootPage.getTotalElements())
+                .pageSize(threadRootPage.getSize())
                 .build();
 
         return SuccessResponseWithMetadata.builder()
                 .metadata(metadata)
-                .data(taskCommentResponses)
+                .data(responses)
                 .build();
     }
 }
