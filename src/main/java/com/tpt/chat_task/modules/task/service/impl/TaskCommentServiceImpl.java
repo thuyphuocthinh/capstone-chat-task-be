@@ -32,6 +32,7 @@ import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.user.repository.UserRepository;
 import com.tpt.chat_task.modules.workspace.constant.WorkspaceError;
 import com.tpt.chat_task.modules.workspace.repository.WorkspaceRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
@@ -285,6 +286,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
+    @Transactional
     public SuccessResponseWithMetadata getThreadComments(String workspaceId, Integer page, Integer paging) throws NotFoundException {
         this.workspaceRepository.findById(workspaceId).orElseThrow(() -> new NotFoundException(WorkspaceError.WORKSPACE_NOT_FOUND));
 
