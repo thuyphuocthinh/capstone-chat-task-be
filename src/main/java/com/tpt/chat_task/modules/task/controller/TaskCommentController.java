@@ -39,10 +39,12 @@ public class TaskCommentController {
     public ResponseEntity<?> updateComment(
             @PathVariable String taskId,
             @PathVariable String commentId,
-            @RequestBody UpdateTaskCommentRequest request
+            @RequestBody UpdateTaskCommentRequest request,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
             ) throws IOException {
+        String accessToken = bearerToken.substring(7);
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.taskCommentService.updateComment(taskId, commentId, request))
+                .data(this.taskCommentService.updateComment(accessToken,taskId, commentId, request))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -50,10 +52,12 @@ public class TaskCommentController {
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<?> deleteComment(
             @PathVariable String taskId,
-            @PathVariable String commentId
+            @PathVariable String commentId,
+            @RequestHeader(JwtConstant.JWT_HEADER) String bearerToken
     ) {
+        String accessToken = bearerToken.substring(7);
         SuccessResponseWithMessage response = SuccessResponseWithMessage.builder()
-                .message(this.taskCommentService.deleteComment(taskId, commentId))
+                .message(this.taskCommentService.deleteComment(accessToken, taskId, commentId))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
