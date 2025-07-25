@@ -98,6 +98,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                 .mentions(taskComment.getMentions())
                 .files(taskComment.getResources())
                 .senderId(taskComment.getSender().getId())
+                .createdAt(taskComment.getCreatedAt())
                 .build();
     }
 
@@ -341,6 +342,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                     .mentions(root.getMentions())
                     .files(root.getResources())
                     .senderId(root.getSender().getId())
+                    .createdAt(root.getCreatedAt())
                     .taskCommentResponses(replyResponses)
                     .build();
 
