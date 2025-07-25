@@ -69,6 +69,24 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Value("${spring.rabbitmq.conversations.members.delete-routing-key}")
     private String conversationDeleteMemberRoutingKey;
 
+    @Value("${spring.rabbitmq.tasks.members.add-queue}")
+    private String taskAddMemberQueue;
+
+    @Value("${spring.rabbitmq.tasks.members.add-exchange}")
+    private String taskAddMemberExchange;
+
+    @Value("${spring.rabbitmq.tasks.members.add-routing-key}")
+    private String taskAddMemberRoutingKey;
+
+    @Value("${spring.rabbitmq.tasks.members.delete-queue}")
+    private String taskDeleteMemberQueue;
+
+    @Value("${spring.rabbitmq.tasks.members.delete-exchange}")
+    private String taskDeleteMemberExchange;
+
+    @Value("${spring.rabbitmq.tasks.members.delete-routing-key}")
+    private String taskDeleteMemberRoutingKey;
+
     @Autowired
     private ConnectionFactory connectionFactory;
 
@@ -196,5 +214,35 @@ public class RabbitMQConfig implements RabbitListenerConfigurer {
     @Bean
     public Binding conversationDeleteMemberBinding(Queue conversationDeleteMemberQueue, DirectExchange conversationDeleteMemberExchange) {
         return BindingBuilder.bind(conversationDeleteMemberQueue).to(conversationDeleteMemberExchange).with(conversationDeleteMemberRoutingKey);
+    }
+
+    @Bean
+    public Queue taskAddMemberQueue() {
+        return new Queue(taskAddMemberQueue, true);
+    }
+
+    @Bean
+    public DirectExchange taskAddMemberExchange() {
+        return new DirectExchange(taskAddMemberExchange);
+    }
+
+    @Bean
+    public Binding taskAddMemberBinding(Queue taskAddMemberQueue, DirectExchange taskAddMemberExchange) {
+        return BindingBuilder.bind(taskAddMemberQueue).to(taskAddMemberExchange).with(taskAddMemberRoutingKey);
+    }
+
+    @Bean
+    public DirectExchange taskDeleteMemberExchange() {
+        return new DirectExchange(taskDeleteMemberExchange);
+    }
+
+    @Bean
+    public Queue taskDeleteMemberQueue() {
+        return new Queue(taskDeleteMemberQueue, true);
+    }
+
+    @Bean
+    public Binding taskDeleteMemberBinding(Queue taskDeleteMemberQueue, DirectExchange taskDeleteMemberExchange) {
+        return BindingBuilder.bind(taskDeleteMemberQueue).to(taskDeleteMemberExchange).with(taskDeleteMemberRoutingKey);
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.conversation.ConversationMemberRequest;
+import com.tpt.chat_task.infrastructure.rabbitmq.dto.task.TaskMemberRequest;
 import com.tpt.chat_task.infrastructure.websocket.dto.WebSocketResponse;
 import com.tpt.chat_task.infrastructure.websocket.utils.WebSocketSchema;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
@@ -11,6 +12,7 @@ import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.notification.dto.NotificationRequest;
 import com.tpt.chat_task.modules.notification.enums.NOTIFICATION_TYPE;
 import com.tpt.chat_task.modules.notification.service.NotificationService;
+import com.tpt.chat_task.modules.task.dto.response.TaskDetailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.coyote.BadRequestException;
@@ -33,7 +35,6 @@ public class RabbitConsumerService {
 
     private final SimpMessagingTemplate simpMessagingTemplate;
 
-    // receiver general event mainly solves push notification events
     @RabbitListener(id = "chat-listener", queues = {}, concurrency = "4")
     public void receiverChatEvent(RabbitMQRequest rabbitMQRequest, Message message) {
         String queueName = message.getMessageProperties().getConsumerQueue();
@@ -57,7 +58,7 @@ public class RabbitConsumerService {
                         WebSocketSchema.getWebsocketNotificationQueue(),
                         webSocketResponse
                 );
-                log.info("Sent websocket notification : {}", webSocketResponse.toString());
+                log.info("Sent websocket message realtime : {}", webSocketResponse.toString());
             }
         } catch (Exception e) {
             log.error("Error on running chat listener");
@@ -71,6 +72,25 @@ public class RabbitConsumerService {
         String queueName = message.getMessageProperties().getConsumerQueue();
         try {
             // listen from queues of task module
+            TaskDetailResponse payload = objectMapper.convertValue(
+                    rabbitMQRequest.getPayload(),
+                    TaskDetailResponse.class
+            );
+            String[] splits = queueName.split("\\.");
+            if(splits.length == 3) {
+                String userId = splits[2];
+                WebSocketResponse webSocketResponse = WebSocketResponse.builder()
+                        .data(payload)
+                        .action(rabbitMQRequest.getPushNotificationAction())
+                        .type(rabbitMQRequest.getPushNotificationType())
+                        .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                        userId,
+                        WebSocketSchema.getWebsocketNotificationQueue(),
+                        webSocketResponse
+                );
+                log.info("Sent websocket task comment realtime : {}", webSocketResponse.toString());
+            }
         } catch (Exception e) {
             log.error("Error on running task listener");
         }
@@ -127,5 +147,19 @@ public class RabbitConsumerService {
         log.info("Received delete member conversation event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
         ConversationMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), ConversationMemberRequest.class);
         this.commonEventHandler.handelDeleteMemberConversationEvent(payload.getUserId(), payload.getConversationId());
+    }
+
+    @RabbitListener(queues = "task_add_member_queue", concurrency = "2")
+    public void receiveAddMemberTaskEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
+        log.info("Received add member task event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
+        TaskMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), TaskMemberRequest.class);
+        this.commonEventHandler.handleAddMemberTaskEvent(payload.getUserId(), payload.getTaskId());
+    }
+
+    @RabbitListener(queues = "task_delete_member_queue", concurrency = "2")
+    public void receiveDeleteMemberTaskEvent(RabbitMQRequest rabbitMQRequest, Message message) throws BadRequestException {
+        log.info("Received delete member task event from rabbit to queue: {}", message.getMessageProperties().getConsumerQueue());
+        TaskMemberRequest payload = objectMapper.convertValue(rabbitMQRequest.getPayload(), TaskMemberRequest.class);
+        this.commonEventHandler.handleDeleteMemberTaskEvent(payload.getUserId(), payload.getTaskId());
     }
 }

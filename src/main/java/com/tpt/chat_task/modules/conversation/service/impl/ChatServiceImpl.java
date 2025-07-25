@@ -463,7 +463,6 @@ public class ChatServiceImpl implements ChatService {
         return result;
     }
 
-
     private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
         MessageElement contentElement = new MessageElement();
         contentElement.setId(contentId);

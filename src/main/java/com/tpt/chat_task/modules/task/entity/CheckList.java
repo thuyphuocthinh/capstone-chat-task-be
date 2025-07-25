@@ -30,6 +30,9 @@ public class CheckList {
     @NotBlank(message = "Label title cannot be blank")
     private String title;
 
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex = 1;
+
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
     private LocalDateTime createdAt;

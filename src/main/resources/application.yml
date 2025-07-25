@@ -2,6 +2,9 @@ spring:
   application:
     name: chat-task
 
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
   datasource:
     url: jdbc:postgresql://localhost:5432/capstone_chat_task
     username: postgres
@@ -34,6 +37,7 @@ spring:
   rabbitmq:
     listener:
       id: chat-listener
+      task-id: task-listener
     login:
       queue: login_queue
       exchange: login_exchange
@@ -53,6 +57,17 @@ spring:
         delete-queue: conversation_delete_member_queue
         delete-exchange: conversation_delete_member_exchange
         delete-routing-key: conversation_delete_member_routing_key
+    tasks:
+      members:
+        add-queue: task_add_member_queue
+        add-exchange: task_add_member_exchange
+        add-routing-key: task_add_member_routing_key
+        delete-queue: task_delete_member_queue
+        delete-exchange: task_delete_member_exchange
+        delete-routing-key: task_delete_member_routing_key
+      queue: task_queue
+      exchange: task_exchange
+      routing-key: task_routing_key
 
   mail:
     host: smtp.gmail.com

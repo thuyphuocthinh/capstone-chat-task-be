@@ -50,6 +50,10 @@ public class Resource {
     private LocalDateTime updatedAt;
 
     @ManyToOne
-    @JoinColumn(name = "message_id", nullable = false)
+    @JoinColumn(name = "message_id")
     private Message message;
+
+    @ManyToOne
+    @JoinColumn(name = "task_id")
+    private Task task;
 }

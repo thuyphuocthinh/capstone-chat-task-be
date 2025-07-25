@@ -297,4 +297,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Optional<Workspace> checkExist = this.workspaceUserRepository.findWorkspaceByWorkspaceIdAndUserId(userId, workspaceId);
         return checkExist.isPresent();
     }
+
+    @Override
+    public boolean isRoleMemberOfWorkspace(String workspaceId, String userId) throws NotFoundException {
+        WorkspaceUser workspaceUser = workspaceUserRepository.findWorkspaceUserByWorkspaceIdAndUserId(workspaceId, userId)
+                .orElseThrow(() -> new NotFoundException(WorkspaceError.USER_NOT_IN_WORKSPACE));
+        return workspaceUser.getUserRole() == WORKSPACE_USER_ROLE.MEMBER;
+    }
 }

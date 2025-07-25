@@ -49,6 +49,9 @@ public class QueueServiceImpl implements QueueService {
         queueRepository.deleteAllByQueueName(queueName);
     }
 
+    // TODO: remove queue by exchange name  , queue name, listener id, routing key
+
+
     @Override
     public List<QueueResponse> getListQueuesByListenerId(String listenerId) throws NotFoundException {
         List<Queue> queues = this.queueRepository.findAllByListenerId(listenerId);
@@ -61,5 +64,15 @@ public class QueueServiceImpl implements QueueService {
                     .routingKey(q.getRoutingKey())
                     .build();
         }).toList();
+    }
+
+    @Override
+    public void removeQueueByNameListenerRoutingExchange(String queueName, String listenerId, String routingExchangeName, String routingKey) throws NotFoundException, BadRequestException {
+        if(!queueRepository.existsByQueueNameAndExchangeNameAndRoutingKey(queueName, routingExchangeName, routingKey, listenerId)) {
+            log.error("Queue does not exist: {}", QueueError.QUEUE_DOES_NOT_EXIST);
+            return;
+        }
+
+        queueRepository.deleteByQueueNameListenerRoutingKeyExchange(queueName, listenerId, routingExchangeName, routingKey);
     }
 }

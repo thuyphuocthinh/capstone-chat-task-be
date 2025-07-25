@@ -1,6 +1,7 @@
 package com.tpt.chat_task.modules.task.entity;
 
 import com.tpt.chat_task.modules.task.enums.TASK_COMMENT_TYPE;
+import com.tpt.chat_task.modules.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,10 +35,23 @@ public class TaskComment {
     @Column(length = 36, name = "parent_id")
     private String parentId;
 
-    @Enumerated(EnumType.STRING)
-    @NotNull(message = "Message type cannot be null")
-    @Column(name = "type", nullable = false, length = 20)
-    private TASK_COMMENT_TYPE type;
+    @Lob
+    @Column(columnDefinition = "TEXT", nullable = false, name = "content")
+    private String content;
+
+    @ManyToOne
+    @JoinColumn(name = "sender_id", nullable = false, updatable = false)
+    private User sender;
+
+    @ElementCollection
+    @CollectionTable(name = "task_comment_mentions", joinColumns = @JoinColumn(name = "task_comment_id"))
+    @Column(name = "mention")
+    private List<String> mentions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "task_comment_resources", joinColumns = @JoinColumn(name = "task_comment_id"))
+    @Column(name = "resource")
+    private List<String> resources = new ArrayList<>();
 
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
@@ -50,7 +64,4 @@ public class TaskComment {
     @ManyToOne
     @JoinColumn(name = "task_id", nullable = false)
     private Task task;
-
-    @OneToMany(mappedBy = "taskComment", fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
-    private List<TaskCommentElement> taskCommentElements = new ArrayList<>();
 }

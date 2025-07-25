@@ -11,4 +11,10 @@ public interface QueueService {
     public void addNewQueue(QueueRequest queueRequest) throws BadRequestException;
     public void removeQueue(String queueName) throws NotFoundException, BadRequestException;
     public List<QueueResponse> getListQueuesByListenerId(String listenerId) throws NotFoundException;
+    public void removeQueueByNameListenerRoutingExchange(
+            String queueName,
+            String listenerId,
+            String routingExchangeName,
+            String routingKey
+    ) throws NotFoundException, BadRequestException;
 }
