@@ -25,7 +25,7 @@ public interface TaskCommentRepository extends JpaRepository<TaskComment, String
 
     @Query("""
         SELECT t FROM TaskComment t
-        WHERE t.task.id = :taskId AND t.parentId = :parentTaskId
+        WHERE t.task.id = :taskId AND t.parentId = :taskCommentParentId
         ORDER BY t.createdAt DESC
     """)
     Page<TaskComment> findAllReplyCommentsByTaskAndCommentParent(

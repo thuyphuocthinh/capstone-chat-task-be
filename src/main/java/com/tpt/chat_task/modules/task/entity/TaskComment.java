@@ -35,7 +35,6 @@ public class TaskComment {
     @Column(length = 36, name = "parent_id")
     private String parentId;
 
-    @Lob
     @Column(columnDefinition = "TEXT", nullable = false, name = "content")
     private String content;
 

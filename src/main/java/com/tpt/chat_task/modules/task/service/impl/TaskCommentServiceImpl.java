@@ -77,8 +77,10 @@ public class TaskCommentServiceImpl implements TaskCommentService {
             List<String> resourceLinks = resources.stream().map(Resource::getLink).collect(Collectors.toList());
             taskComment.setResources(resourceLinks);
         }
+        if(mentions != null && !mentions.isEmpty()) {
+            taskComment.setMentions(mentions);
+        }
         taskComment.setContent(content);
-        taskComment.setMentions(mentions);
         taskComment.setTask(task);
         taskComment.setSender(user);
         return taskComment;
@@ -123,7 +125,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                             PUSH_NOTIFICATION_TYPE.TASK
                     )
             );
-            if(!taskCommentResponse.getMentions().isEmpty()) {
+            if(taskCommentResponse.getMentions() != null && !taskCommentResponse.getMentions().isEmpty()) {
                 List<String> mentions = taskCommentResponse.getMentions();
                 for(String mentionUserId : mentions) {
                     this.pushToNotificationQueueAndDatabase(taskCommentResponse, mentionUserId);
