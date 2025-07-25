@@ -1,14 +1,17 @@
 package com.tpt.chat_task.modules.task.service.impl;
 
+import com.tpt.chat_task.common.constant.ErrorConstant;
 import com.tpt.chat_task.common.constant.Metadata;
 import com.tpt.chat_task.common.dto.SuccessResponseWithMetadata;
 import com.tpt.chat_task.common.enums.RESPONSE_STATUS;
+import com.tpt.chat_task.common.exceptions.ForbiddenException;
 import com.tpt.chat_task.common.exceptions.NotFoundException;
 import com.tpt.chat_task.infrastructure.rabbitmq.dto.RabbitMQRequest;
 import com.tpt.chat_task.infrastructure.rabbitmq.enums.EXCHANGE_TYPE;
 import com.tpt.chat_task.infrastructure.rabbitmq.enums.PUSH_NOTIFICATION_TYPE;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.PushNotificationAction;
 import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
+import com.tpt.chat_task.modules.auth.constant.AuthError;
 import com.tpt.chat_task.modules.auth.jwt.JwtProvider;
 import com.tpt.chat_task.modules.notification.constant.NotificationConstant;
 import com.tpt.chat_task.modules.notification.constant.NotificationError;
@@ -95,6 +98,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                 .mentions(taskComment.getMentions())
                 .files(taskComment.getResources())
                 .senderId(taskComment.getSender().getId())
+                .createdAt(taskComment.getCreatedAt())
                 .build();
     }
 
@@ -172,9 +176,14 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
-    public TaskCommentResponse updateComment(String taskId, String taskCommentId, UpdateTaskCommentRequest updateTaskCommentRequest) throws NotFoundException, IOException {
+    public TaskCommentResponse updateComment(String token, String taskId, String taskCommentId, UpdateTaskCommentRequest updateTaskCommentRequest) throws NotFoundException, IOException {
         Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         TaskComment taskComment = this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
+
+        String userId = this.jwtProvider.getIdFromToken(token);
+        if(!taskComment.getSender().getId().equals(userId)) {
+            throw new ForbiddenException(ErrorConstant.NOT_ALLOWED_TO_ACCESS_RESOURCE);
+        }
 
         List<Resource> resources = new ArrayList<>();
         if(updateTaskCommentRequest.getFiles() != null && updateTaskCommentRequest.getFiles().size() > 0) {
@@ -196,9 +205,15 @@ public class TaskCommentServiceImpl implements TaskCommentService {
     }
 
     @Override
-    public String deleteComment(String taskId, String taskCommentId) throws NotFoundException {
+    public String deleteComment(String token, String taskId, String taskCommentId) throws NotFoundException {
         this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
         TaskComment taskComment = this.taskCommentRepository.findById(taskCommentId).orElseThrow(() -> new NotFoundException(TaskCommentError.TASK_COMMENT_NOT_FOUND));
+
+        String userId = this.jwtProvider.getIdFromToken(token);
+        if(!taskComment.getSender().getId().equals(userId)) {
+            throw new ForbiddenException(ErrorConstant.NOT_ALLOWED_TO_ACCESS_RESOURCE);
+        }
+
         this.taskCommentRepository.deleteById(taskCommentId);
         TaskCommentResponse taskCommentResponse = this.mapTaskCommentToTaskCommentResponse(taskComment);
         this.pushToQueueAsync(taskCommentResponse, PushNotificationAction.DELETE_COMMENT, taskId);
@@ -327,6 +342,7 @@ public class TaskCommentServiceImpl implements TaskCommentService {
                     .mentions(root.getMentions())
                     .files(root.getResources())
                     .senderId(root.getSender().getId())
+                    .createdAt(root.getCreatedAt())
                     .taskCommentResponses(replyResponses)
                     .build();
 
