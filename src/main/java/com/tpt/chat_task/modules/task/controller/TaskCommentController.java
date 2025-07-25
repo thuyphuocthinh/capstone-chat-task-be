@@ -39,7 +39,7 @@ public class TaskCommentController {
             @PathVariable String taskId,
             @PathVariable String commentId,
             @RequestBody UpdateTaskCommentRequest request
-            ) {
+            ) throws IOException {
         SuccessResponse response = SuccessResponse.builder()
                 .data(this.taskCommentService.updateComment(taskId, commentId, request))
                 .build();
