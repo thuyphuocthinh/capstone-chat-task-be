@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @AllArgsConstructor
@@ -23,4 +24,6 @@ public class MessageResponse {
     private List<MessageReactResponse> reactions;
     private List<String> userIds;
     private LocalDateTime createdAt;
+    private int countReplies = 0;
+    private List<String> userReplyIds = new ArrayList<>();
 }

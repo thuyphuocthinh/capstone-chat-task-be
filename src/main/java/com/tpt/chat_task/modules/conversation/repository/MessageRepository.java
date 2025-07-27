@@ -184,4 +184,11 @@ public interface MessageRepository extends JpaRepository<Message, String> {
           )
         """, nativeQuery = true)
     Page<Message> findAllThreadMessages(@Param("userId") String userId, Pageable pageable);
+
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM messages m
+        WHERE m.parent_id = :messageId
+    """, nativeQuery = true)
+    Integer countRepliesOfMessage(@Param("messageId") String messageId);
 }

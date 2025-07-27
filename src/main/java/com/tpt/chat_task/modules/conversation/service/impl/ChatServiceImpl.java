@@ -250,6 +250,9 @@ public class ChatServiceImpl implements ChatService {
         response.setPinned(message.isPinned());
         response.setConversationId(message.getConversation().getId());
 
+        Integer countRepliesOfMessage = this.messageRepository.countRepliesOfMessage(message.getId());
+        response.setCountReplies(countRepliesOfMessage);
+
         // Set files
         List<Resource> resources = message.getResources();
         response.setFiles(resources != null && !resources.isEmpty()
