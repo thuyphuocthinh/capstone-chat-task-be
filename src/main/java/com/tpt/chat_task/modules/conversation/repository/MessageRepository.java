@@ -191,4 +191,11 @@ public interface MessageRepository extends JpaRepository<Message, String> {
         WHERE m.parent_id = :messageId
     """, nativeQuery = true)
     Integer countRepliesOfMessage(@Param("messageId") String messageId);
+
+    @Query(value = """  
+        SELECT DISTINCT sender_id
+        FROM messages m 
+        WHERE m.parent_id = :messageId
+    """, nativeQuery = true)
+    List<String> getUserRepliesId(@Param("messageId") String messageId);
 }
