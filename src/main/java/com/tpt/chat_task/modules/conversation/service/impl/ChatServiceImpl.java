@@ -250,6 +250,16 @@ public class ChatServiceImpl implements ChatService {
         response.setPinned(message.isPinned());
         response.setConversationId(message.getConversation().getId());
 
+        // count replies
+        Integer countRepliesOfMessage = this.messageRepository.countRepliesOfMessage(message.getId());
+        response.setCountReplies(countRepliesOfMessage);
+
+        // get user reply ids
+        if(countRepliesOfMessage > 0) {
+            List<String> userIds = this.messageRepository.getUserRepliesId(message.getId());
+            response.setUserReplyIds(userIds);
+        }
+
         // Set files
         List<Resource> resources = message.getResources();
         response.setFiles(resources != null && !resources.isEmpty()
@@ -267,17 +277,6 @@ public class ChatServiceImpl implements ChatService {
         // Set reactions
         List<MessageReactResponse> reactions = iconService.getReactionsByMessageId(message.getId());
         response.setReactions(reactions != null ? reactions : Collections.emptyList());
-
-        // Set userIds (for replies)
-        if (message.getParentId() == null) {
-            response.setUserIds(Collections.emptyList());
-        } else {
-            response.setUserIds(
-                    this.getRepliesMessage(message.getId()).stream()
-                            .map(reply -> reply.getUser().getId())
-                            .toList()
-            );
-        }
 
         // Set elements
         List<MessageElement> elements = message.getMessageElements();
