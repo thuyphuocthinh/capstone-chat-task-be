@@ -332,6 +332,30 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
+    public List<SearchMessageResponse> mapToSearchMessageResponse(List<SearchMessageProjection> projections) {
+        return projections.stream()
+                .map(p -> new SearchMessageResponse(
+                        p.getId(),
+                        p.getConversationId(),
+                        p.getHighlight(),
+                        p.getContent(),
+                        p.getIndent(),
+                        p.getType(),
+                        p.getIsBold(),
+                        p.getIsItalic(),
+                        p.getIsUnderline(),
+                        p.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+    }
+
+
+    @Override
+    public List<SearchMessageResponse> searchMessage(String conversationId, String keyword) {
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        return this.mapToSearchMessageResponse(this.messageElementRepository.ftsSearchMessagesByConversationId(conversationId, keyword));
+    }
+
     private List<String> extractUserIdsFromConversation(Conversation conversation) {
         return conversation.getUsers().stream().map(User::getId).collect(Collectors.toList());
     }

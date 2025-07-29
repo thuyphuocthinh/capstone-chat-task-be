@@ -7,6 +7,7 @@ import com.tpt.chat_task.modules.conversation.dto.request.MessageRequest;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageElementResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResourceResponse;
 import com.tpt.chat_task.modules.conversation.dto.response.MessageResponse;
+import com.tpt.chat_task.modules.conversation.dto.response.SearchMessageResponse;
 import com.tpt.chat_task.modules.conversation.entity.Message;
 import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
 
@@ -32,4 +33,5 @@ public interface ChatService {
     public String markReadMessagesByConversation(String token, String conversationI) throws NotFoundException;
     public List<MessageResponse> searchMessagesByConversationAndKeyword(String conversationId, String keyword) throws NotFoundException;
     public SuccessResponseWithMetadata<?> getListThreadsOfWorkspace(String token, String workspaceId, Integer paging, Integer page) throws NotFoundException;
+    public List<SearchMessageResponse> searchMessage(String conversationId, String keyword);
 }
