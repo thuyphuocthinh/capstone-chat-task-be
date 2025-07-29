@@ -308,15 +308,29 @@ public class ChatServiceImpl implements ChatService {
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
         Page<Message> threadsPage = this.messageRepository.findAllThreadMessages(userId, pageable);
         List<Message> allThreadMessages = threadsPage.getContent();
-        Map<String, List<Message>> threads = allThreadMessages.stream()
-                .collect(Collectors.groupingBy(msg -> msg.getParentId() == null ? msg.getId() : msg.getParentId()));
+        // Group messages by parentId
+        Map<String, List<Message>> repliesByParentId = allThreadMessages.stream()
+                .filter(msg -> msg.getParentId() != null)
+                .collect(Collectors.groupingBy(Message::getParentId));
 
-        List<MessageResponse> messageResponses = new ArrayList<>();
-        for (Map.Entry<String, List<Message>> entry : threads.entrySet()) {
-            List<Message> messagesInThread = entry.getValue();
-            for(Message message : messagesInThread) {
-                messageResponses.add(this.mapMessageToMessageResponse(message));
-            }
+        // Lấy root messages (parentId == null)
+        List<Message> rootMessages = allThreadMessages.stream()
+                .filter(msg -> msg.getParentId() == null)
+                .collect(Collectors.toList());
+
+        // Kết quả gom lại từng thread
+        List<ThreadMessageResponse> threads = new ArrayList<>();
+        for (Message root : rootMessages) {
+            List<Message> replies = repliesByParentId.getOrDefault(root.getId(), Collections.emptyList());
+            ThreadMessageResponse thread = new ThreadMessageResponse();
+            thread.setRoot(this.mapMessageToMessageResponse(root));
+            thread.setReplies(
+                    replies.stream()
+                            .map(this::mapMessageToMessageResponse)
+                            .collect(Collectors.toList())
+            );
+
+            threads.add(thread);
         }
 
         Metadata metadata = Metadata.builder()
@@ -328,7 +342,7 @@ public class ChatServiceImpl implements ChatService {
 
         return SuccessResponseWithMetadata.builder()
                 .metadata(metadata)
-                .data(messageResponses)
+                .data(threads)
                 .build();
     }
 
