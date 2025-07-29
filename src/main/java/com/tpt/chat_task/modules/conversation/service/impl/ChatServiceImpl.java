@@ -703,6 +703,11 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        if(message.getParentId() != null) {
+            throw new BadRequestException(ConversationError.INVALID_PARENT_MESSAGE);
+        }
+
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();
