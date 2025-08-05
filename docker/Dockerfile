@@ -10,7 +10,7 @@ COPY ../pom.xml .
 RUN mvn dependency:go-offline -B
 
 # copy source và build
-COPY ../src ./src
+COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # ---------- runtime stage ----------
