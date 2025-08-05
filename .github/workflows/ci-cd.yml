@@ -52,6 +52,9 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/heads/') && (github.ref_name == 'main' || github.ref_name == 'dev' || github.ref_name == 'staging')
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Determine environment
         id: env
         run: |
