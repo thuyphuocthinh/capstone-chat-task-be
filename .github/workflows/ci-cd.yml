@@ -72,7 +72,7 @@ jobs:
             set -e
             cd /home/${{ secrets.VPS_USER }}/app
             
-            # Tạo file .env từ GitHub Secrets
+            # Tạo file .env từ GitHub Secrets de doc
             if [ "${{ steps.env.outputs.env }}" = "prod" ]; then
               echo "${{ secrets.ENV_PROD }}" > .env
             else
