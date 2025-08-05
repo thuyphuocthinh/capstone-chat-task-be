@@ -49,7 +49,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ steps.env.outputs.image_name }}:${{ github.sha }} ./docker
+          docker build -f docker/Dockerfile -t ${{ steps.env.outputs.image_name }}:${{ github.sha }} .
           docker tag ${{ steps.env.outputs.image_name }}:${{ github.sha }} ${{ steps.env.outputs.image_name }}:latest
 
       - name: Push images
