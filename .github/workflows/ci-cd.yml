@@ -98,7 +98,7 @@ jobs:
             docker pull $IMAGE_NAME:latest
   
             # Up lại stack (image mới sẽ được dùng)
-            docker compose up -d --build
+            docker compose up -d
   
   
 
