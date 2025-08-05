@@ -50,7 +50,7 @@ jobs:
     name: Deploy to VPS
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
+    if: startsWith(github.ref, 'refs/heads/') && (github.ref_name == 'main' || github.ref_name == 'dev' || github.ref_name == 'staging')
     steps:
       - name: Determine environment
         id: env
