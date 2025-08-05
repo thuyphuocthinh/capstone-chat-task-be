@@ -115,5 +115,5 @@ jobs:
             # Pull image mới
             docker pull ${{ steps.env.outputs.image_name }}:latest
 
-            # Khởi động lại dịch vụ
+            # Khởi động lại service
             docker compose -f docker-compose.${{ steps.env.outputs.env }}.yml up -d
