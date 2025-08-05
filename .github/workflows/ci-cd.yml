@@ -73,14 +73,14 @@ jobs:
         id: env
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "env=prod" >> $GITHUB_OUTPUT
-            echo "image_name=tpt2003/chat-task-prod" >> $GITHUB_OUTPUT
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+            echo "image_name=tpt2003/chat-task-prod" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "staging" ]; then
-            echo "env=staging" >> $GITHUB_OUTPUT
-            echo "image_name=tpt2003/chat-task-staging" >> $GITHUB_OUTPUT
+            echo "env=staging" >> "$GITHUB_OUTPUT"
+            echo "image_name=tpt2003/chat-task-staging" >> "$GITHUB_OUTPUT"
           else
-            echo "env=dev" >> $GITHUB_OUTPUT
-            echo "image_name=tpt2003/chat-task-dev" >> $GITHUB_OUTPUT
+            echo "env=dev" >> "$GITHUB_OUTPUT"
+            echo "image_name=tpt2003/chat-task-dev" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Copy docker-compose file to VPS
