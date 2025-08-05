@@ -71,7 +71,7 @@ jobs:
             set -e
             cd /home/${{ secrets.VPS_USER }}/app
   
-            # Đăng nhập Docker Hub để pull
+            # Đăng nhập Docker Hub để pull image ve
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
   
             # Pull image mới
