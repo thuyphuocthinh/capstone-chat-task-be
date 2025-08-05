@@ -4,13 +4,13 @@ FROM maven:3.8.7-openjdk-18 AS build
 WORKDIR /build
 
 # copy pom để tận dụng cache dependency
-COPY pom.xml .
+COPY ../pom.xml .
 
 # sửa lỗi chính tả và tải dependency trước
 RUN mvn dependency:go-offline -B
 
 # copy source và build
-COPY src ./src
+COPY ../src ./src
 RUN mvn clean package -DskipTests -B
 
 # ---------- runtime stage ----------
