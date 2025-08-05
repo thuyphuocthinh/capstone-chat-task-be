@@ -61,15 +61,6 @@ jobs:
             echo "env=dev" >> $GITHUB_OUTPUT
           fi
 
-      - name: Copy env files
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: ".env.dev,.env.prod"
-          target: "/home/${{ secrets.VPS_USER }}/app"
-
       - name: SSH and deploy to VPS
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -80,19 +71,19 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.VPS_USER }}/app
-  
+            
+            # Tạo file .env từ GitHub Secrets
+            if [ "${{ steps.env.outputs.env }}" = "prod" ]; then
+              echo "${{ secrets.ENV_PROD }}" > .env
+            else
+              echo "${{ secrets.ENV_DEV }}" > .env
+            fi
+            
             # Đăng nhập Docker Hub để pull image ve
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
   
             # Pull image mới
             docker pull $IMAGE_NAME:latest
-  
-            # Chọn .env phù hợp
-            if [ "${{ steps.env.outputs.env }}" = "prod" ]; then
-            cp .env.prod .env
-            else
-            cp .env.dev .env
-            fi
   
             # Up lại stack (image mới sẽ được dùng)
             docker compose up -d --build
