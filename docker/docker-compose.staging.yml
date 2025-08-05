@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
       interval: 10s
@@ -20,6 +22,8 @@ services:
     command: [ "redis-server", "--save", "", "--appendonly", "yes", "--requirepass", "${SPRING_REDIS_PASSWORD}" ]
     volumes:
       - redisdata:/data
+    ports:
+      - "6381:6379"
     environment:
       REDISCLI_AUTH: ${SPRING_REDIS_PASSWORD}
     healthcheck:
@@ -35,7 +39,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     ports:
-      - "15672:15672"
+      - "15674:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
