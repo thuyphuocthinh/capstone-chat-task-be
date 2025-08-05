@@ -105,11 +105,11 @@ jobs:
 
             # Ghi file .env đúng môi trường
             if [ "${{ steps.env.outputs.env }}" = "prod" ]; then
-              echo "${{ secrets.ENV_PROD }}" > .env
+              echo "${{ secrets.ENV_PROD }}" > docker/.env
             elif [ "${{ steps.env.outputs.env }}" = "staging" ]; then
-              echo "${{ secrets.ENV_STAGING }}" > .env
+              echo "${{ secrets.ENV_STAGING }}" > docker/.env
             else
-              echo "${{ secrets.ENV_DEV }}" > .env
+              echo "${{ secrets.ENV_DEV }}" > docker/.env
             fi
 
             # Đăng nhập Docker Hub để pull image
