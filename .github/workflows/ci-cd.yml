@@ -62,6 +62,9 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/heads/') && (github.ref_name == 'main' || github.ref_name == 'dev' || github.ref_name == 'staging')
+    env:
+      DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
