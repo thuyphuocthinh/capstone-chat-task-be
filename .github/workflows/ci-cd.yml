@@ -8,7 +8,7 @@ on:
       - staging
 
 env:
-  IMAGE_NAME: tpt2003/chat-task:latest
+  IMAGE_NAME: tpt2003/chat-task
 
 jobs:
   build-and-push:
