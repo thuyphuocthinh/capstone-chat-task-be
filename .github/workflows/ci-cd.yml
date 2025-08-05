@@ -2,9 +2,10 @@ name: CI-CD SPRING BOOT
 
 on:
   push:
-    - main
-    - dev
-    - staging
+    branches:
+      - main
+      - dev
+      - staging
 
 env:
   IMAGE_NAME: tpt2003/chat-task:latest
