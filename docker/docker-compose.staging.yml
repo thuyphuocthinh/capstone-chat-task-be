@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   postgres:
     image: postgres:15
@@ -7,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_staging:/var/lib/postgresql/data
     ports:
       - "5434:5432"
     healthcheck:
@@ -15,13 +17,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - staging_net
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     command: [ "redis-server", "--save", "", "--appendonly", "yes", "--requirepass", "${SPRING_REDIS_PASSWORD}" ]
     volumes:
-      - redisdata:/data
+      - redisdata_staging:/data
     ports:
       - "6381:6379"
     environment:
@@ -31,6 +35,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - staging_net
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -41,12 +47,14 @@ services:
     ports:
       - "15674:15672"
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_data_staging:/var/lib/rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "rabbitmq-diagnostics -q status" ]
       interval: 15s
       timeout: 5s
       retries: 5
+    networks:
+      - staging_net
 
   backend:
     image: ${IMAGE_NAME}:latest
@@ -67,7 +75,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: staging
       OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID}
       OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET}
       OAUTH_GOOGLE_REDIRECT_URI: ${OAUTH_GOOGLE_REDIRECT_URI}
@@ -80,8 +88,13 @@ services:
     ports:
       - "8082:8080"
     restart: unless-stopped
+    networks:
+      - staging_net
 
 volumes:
-  pgdata:
-  redisdata:
-  rabbitmq_data:
+  pgdata_staging:
+  redisdata_staging:
+  rabbitmq_data_staging:
+
+networks:
+  staging_net:
