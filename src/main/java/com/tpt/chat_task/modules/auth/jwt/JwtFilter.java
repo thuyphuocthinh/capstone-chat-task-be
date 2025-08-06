@@ -45,7 +45,11 @@ public class JwtFilter extends OncePerRequestFilter {
             "/api/v1/auth/verify-email",
             "/api/v1/auth/verify-otp",
             "/api/v1/auth/reset-password",
-            "/api/v1/auth/google/verify-token"
+            "/api/v1/auth/google/verify-token",
+            "/swagger-",
+            "/v2",
+            "/v3",
+            "/v4"
     );
 
     public JwtFilter(CustomUserDetailsService customUserDetailsService, CacheBlackList cacheBlackList) {

@@ -8,5 +8,7 @@ public interface CommentEventHandler {
     public void handleLoginEvent(String userId) throws BadRequestException;
     public void handelAddMemberConversationEvent(String userId, String conversationId) throws NotFoundException, BadRequestException;
     public void handelDeleteMemberConversationEvent(String userId, String conversationId) throws NotFoundException, BadRequestException;
+    public void handleAddMemberTaskEvent(String userId, String taskId) throws NotFoundException, BadRequestException;
+    public void handleDeleteMemberTaskEvent(String userId, String taskId) throws NotFoundException, BadRequestException;
     public void handleGeneralEvent(RabbitMQRequest rabbitMQRequest);
 }

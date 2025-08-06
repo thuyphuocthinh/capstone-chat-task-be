@@ -4,8 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @AllArgsConstructor
@@ -21,6 +23,7 @@ public class MessageResponse {
     private boolean isRead;
     private List<MessageResourceResponse> files;
     private List<MessageReactResponse> reactions;
-    private List<String> userIds;
     private LocalDateTime createdAt;
+    private int countReplies = 0;
+    private List<String> userReplyIds = new ArrayList<>();
 }

@@ -17,4 +17,11 @@ public interface WorkspaceUserRepository extends JpaRepository<WorkspaceUser, Wo
 
     @Query("SELECT wu.workspace FROM WorkspaceUser wu WHERE wu.workspace.id = :workspaceId AND wu.user.id = :userId")
     Optional<Workspace> findWorkspaceByWorkspaceIdAndUserId(@Param("userId") String userId, @Param("workspaceId") String workspaceId);
+
+    @Query(value = """
+        SELECT *
+        FROM workspace_users
+        WHERE workspace_id = :workspaceId AND user_id = :userId
+    """, nativeQuery = true)
+    Optional<WorkspaceUser> findWorkspaceUserByWorkspaceIdAndUserId(@Param("workspaceId") String workspaceId, @Param("userId") String userId);
 }

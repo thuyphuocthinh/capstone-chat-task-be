@@ -10,6 +10,9 @@ import com.tpt.chat_task.modules.conversation.constant.ConversationError;
 import com.tpt.chat_task.modules.conversation.entity.Conversation;
 import com.tpt.chat_task.modules.conversation.enums.CONVERSATION_TYPE;
 import com.tpt.chat_task.modules.conversation.repository.ConversationRepository;
+import com.tpt.chat_task.modules.task.constant.TaskError;
+import com.tpt.chat_task.modules.task.entity.Task;
+import com.tpt.chat_task.modules.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.coyote.BadRequestException;
@@ -29,8 +32,13 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
 
     private final SimpMessagingTemplate simpMessagingTemplate;
 
+    private final TaskRepository taskRepository;
+
     @Value("${spring.rabbitmq.listener.id}")
     private String listenerId;
+
+    @Value("${spring.rabbitmq.listener.task-id}")
+    private String taskListenerId;
 
     public void handleLoginEvent(String userId) throws BadRequestException {
         String queueName = RabbitMQSchema.getQueueName(userId);
@@ -73,9 +81,33 @@ public class CommonEventHandlerImpl implements CommentEventHandler {
     }
 
     public void handelDeleteMemberConversationEvent(String userId, String conversationId) throws BadRequestException {
-        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        Conversation conversation = this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
         String queueName = RabbitMQSchema.getQueueName(userId);
-        this.rabbitMQService.removeQueueFromListener(listenerId, queueName);
+        if(conversation.getType() == CONVERSATION_TYPE.GROUP) {
+            String groupExchangeName = RabbitMQSchema.GROUP_CHAT_EXCHANGE;
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getGroupChatRoutingKey(conversationId), groupExchangeName);
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getGroupChatAllRoutingKey(conversationId), groupExchangeName);
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getGroupChatMentionRoutingKey(conversationId, userId), groupExchangeName);
+        } else {
+            String privateExchangeName = RabbitMQSchema.PRIVATE_CHAT_EXCHANGE;
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getPrivateChatRoutingKey(conversationId), privateExchangeName);
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getPrivateChatAllRoutingKey(conversationId), privateExchangeName);
+            this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getPrivateChatMentionRoutingKey(conversationId, userId), privateExchangeName);
+        }
+    }
+
+    @Override
+    public void handleAddMemberTaskEvent(String userId, String taskId) throws NotFoundException, BadRequestException {
+        this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        String queueName = RabbitMQSchema.getQueueName(userId);
+        this.rabbitMQService.addNewQueue(taskListenerId, queueName, RabbitMQSchema.TASK_EXCHANGE, RabbitMQSchema.getTaskRoutingKeyByUserId(taskId));
+    }
+
+    @Override
+    public void handleDeleteMemberTaskEvent(String userId, String taskId) throws NotFoundException, BadRequestException {
+        Task task = this.taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException(TaskError.TASK_NOT_FOUND));
+        String queueName = RabbitMQSchema.getQueueName(userId);
+        this.rabbitMQService.unbindQueue(listenerId, queueName, RabbitMQSchema.getTaskRoutingKeyByUserId(taskId), RabbitMQSchema.TASK_EXCHANGE);
     }
 
     @Override

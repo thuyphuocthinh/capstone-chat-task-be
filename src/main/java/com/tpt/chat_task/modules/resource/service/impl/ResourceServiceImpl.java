@@ -3,6 +3,7 @@ package com.tpt.chat_task.modules.resource.service.impl;
 import com.tpt.chat_task.infrastructure.storage.service.UploadService;
 import com.tpt.chat_task.modules.resource.entity.Resource;
 import com.tpt.chat_task.modules.resource.enums.RESOURCE_TYPE;
+import com.tpt.chat_task.modules.resource.repository.ResourceRepository;
 import com.tpt.chat_task.modules.resource.service.ResourceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,19 +21,18 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final UploadService uploadService;
 
-    // id cua resource cung la id ma cloudinary tra ve
     @Override
     public Resource uploadSingleFile(MultipartFile file) throws IOException {
         Map<String, Object> cloudinaryResult = this.uploadService.uploadOneFile(file);
         String resourceType = (String) cloudinaryResult.get("resource_type");
 
-        return Resource.builder()
-                .id((String) cloudinaryResult.get("public_id"))
+        Resource resource = Resource.builder()
                 .name((String) cloudinaryResult.get("original_filename"))
                 .link((String) cloudinaryResult.get("secure_url"))
                 .type(RESOURCE_TYPE.fromCloudinary(resourceType))
                 .createdAt((LocalDateTime) cloudinaryResult.get("created_at"))
                 .build();
+        return resource;
     }
 
 
@@ -44,13 +44,11 @@ public class ResourceServiceImpl implements ResourceService {
             Map<String, Object> cloudinaryResult = uploadService.uploadOneFile(file);
             String resourceType = (String) cloudinaryResult.get("resource_type");
             Resource response = Resource.builder()
-                    .id((String) cloudinaryResult.get("public_id"))
                     .name((String) cloudinaryResult.get("original_filename"))
                     .link((String) cloudinaryResult.get("secure_url"))
                     .type(RESOURCE_TYPE.fromCloudinary(resourceType))
                     .createdAt(LocalDateTime.now())
                     .build();
-
             responses.add(response);
         }
 

@@ -123,6 +123,15 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<?> handleForbidden(ForbiddenException ex) {
+        return new ResponseEntity<>(
+                ErrorResponse.builder().message(ex.getMessage()).build(),
+                HttpStatus.FORBIDDEN
+        );
+    }
+
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDenied(AccessDeniedException ex) {
         ErrorResponse response = ErrorResponse.builder().message(ex.getMessage()).build();

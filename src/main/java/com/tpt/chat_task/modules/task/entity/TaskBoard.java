@@ -1,5 +1,6 @@
 package com.tpt.chat_task.modules.task.entity;
 
+import com.tpt.chat_task.modules.user.entity.User;
 import com.tpt.chat_task.modules.workspace.entity.Workspace;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -35,6 +36,9 @@ public class TaskBoard {
     @NotBlank(message = "Background url cannot be blank")
     private String backgroundUrl;
 
+    @Column(nullable = false, name = "is_pinned")
+    private boolean isPinned = Boolean.FALSE;
+
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -49,4 +53,15 @@ public class TaskBoard {
     @ManyToOne
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            joinColumns = @JoinColumn(name = "task_board_id", nullable = false),
+            inverseJoinColumns = @JoinColumn(name = "user_id", nullable = false),
+            name = "task_board_users"
+    )
+    private List<User> users = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "taskBoard")
+    private List<Label> labels = new ArrayList<>();
 }

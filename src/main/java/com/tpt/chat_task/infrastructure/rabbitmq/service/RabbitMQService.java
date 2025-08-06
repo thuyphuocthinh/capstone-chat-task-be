@@ -8,4 +8,5 @@ public interface RabbitMQService {
     void removeQueueFromListener(String listenerId, String queueName) throws BadRequestException;
     boolean checkQueueExistOnListener(String listenerId, String queueName);
     void restoreQueuesByListener(String listenerId);
+    void unbindQueue(String listenerId, String queueName, String routingKey, String exchangeName) throws BadRequestException;
 }

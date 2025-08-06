@@ -250,6 +250,16 @@ public class ChatServiceImpl implements ChatService {
         response.setPinned(message.isPinned());
         response.setConversationId(message.getConversation().getId());
 
+        // count replies
+        Integer countRepliesOfMessage = this.messageRepository.countRepliesOfMessage(message.getId());
+        response.setCountReplies(countRepliesOfMessage);
+
+        // get user reply ids
+        if(countRepliesOfMessage > 0) {
+            List<String> userIds = this.messageRepository.getUserRepliesId(message.getId());
+            response.setUserReplyIds(userIds);
+        }
+
         // Set files
         List<Resource> resources = message.getResources();
         response.setFiles(resources != null && !resources.isEmpty()
@@ -267,17 +277,6 @@ public class ChatServiceImpl implements ChatService {
         // Set reactions
         List<MessageReactResponse> reactions = iconService.getReactionsByMessageId(message.getId());
         response.setReactions(reactions != null ? reactions : Collections.emptyList());
-
-        // Set userIds (for replies)
-        if (message.getParentId() == null) {
-            response.setUserIds(Collections.emptyList());
-        } else {
-            response.setUserIds(
-                    this.getRepliesMessage(message.getId()).stream()
-                            .map(reply -> reply.getUser().getId())
-                            .toList()
-            );
-        }
 
         // Set elements
         List<MessageElement> elements = message.getMessageElements();
@@ -309,15 +308,29 @@ public class ChatServiceImpl implements ChatService {
         Pageable pageable =  PageRequest.of(Math.max(0, page - 1), paging);
         Page<Message> threadsPage = this.messageRepository.findAllThreadMessages(userId, pageable);
         List<Message> allThreadMessages = threadsPage.getContent();
-        Map<String, List<Message>> threads = allThreadMessages.stream()
-                .collect(Collectors.groupingBy(msg -> msg.getParentId() == null ? msg.getId() : msg.getParentId()));
+        // Group messages by parentId
+        Map<String, List<Message>> repliesByParentId = allThreadMessages.stream()
+                .filter(msg -> msg.getParentId() != null)
+                .collect(Collectors.groupingBy(Message::getParentId));
 
-        List<MessageResponse> messageResponses = new ArrayList<>();
-        for (Map.Entry<String, List<Message>> entry : threads.entrySet()) {
-            List<Message> messagesInThread = entry.getValue();
-            for(Message message : messagesInThread) {
-                messageResponses.add(this.mapMessageToMessageResponse(message));
-            }
+        // Lấy root messages (parentId == null)
+        List<Message> rootMessages = allThreadMessages.stream()
+                .filter(msg -> msg.getParentId() == null)
+                .collect(Collectors.toList());
+
+        // Kết quả gom lại từng thread
+        List<ThreadMessageResponse> threads = new ArrayList<>();
+        for (Message root : rootMessages) {
+            List<Message> replies = repliesByParentId.getOrDefault(root.getId(), Collections.emptyList());
+            ThreadMessageResponse thread = new ThreadMessageResponse();
+            thread.setRoot(this.mapMessageToMessageResponse(root));
+            thread.setReplies(
+                    replies.stream()
+                            .map(this::mapMessageToMessageResponse)
+                            .collect(Collectors.toList())
+            );
+
+            threads.add(thread);
         }
 
         Metadata metadata = Metadata.builder()
@@ -329,8 +342,32 @@ public class ChatServiceImpl implements ChatService {
 
         return SuccessResponseWithMetadata.builder()
                 .metadata(metadata)
-                .data(messageResponses)
+                .data(threads)
                 .build();
+    }
+
+    public List<SearchMessageResponse> mapToSearchMessageResponse(List<SearchMessageProjection> projections) {
+        return projections.stream()
+                .map(p -> new SearchMessageResponse(
+                        p.getId(),
+                        p.getConversationId(),
+                        p.getHighlight(),
+                        p.getContent(),
+                        p.getIndent(),
+                        p.getType(),
+                        p.getIsBold(),
+                        p.getIsItalic(),
+                        p.getIsUnderline(),
+                        p.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+    }
+
+
+    @Override
+    public List<SearchMessageResponse> searchMessage(String conversationId, String keyword) {
+        this.conversationRepository.findById(conversationId).orElseThrow(() -> new NotFoundException(ConversationError.CONVERSATION_NOT_FOUND));
+        return this.mapToSearchMessageResponse(this.messageElementRepository.ftsSearchMessagesByConversationId(conversationId, keyword));
     }
 
     private List<String> extractUserIdsFromConversation(Conversation conversation) {
@@ -462,7 +499,6 @@ public class ChatServiceImpl implements ChatService {
 
         return result;
     }
-
 
     private static MessageElement getMessageElement(MessageElementContentRequest contentReq, String contentId, String sectionId) {
         MessageElement contentElement = new MessageElement();
@@ -667,6 +703,11 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public MessageResponse replyMessage(String token, String messageId, MessageRequest request) throws NotFoundException, IOException {
         Message message = this.messageRepository.findById(messageId).orElseThrow(() -> new NotFoundException(ConversationError.MESSAGE_NOT_FOUND));
+
+        if(message.getParentId() != null) {
+            throw new BadRequestException(ConversationError.INVALID_PARENT_MESSAGE);
+        }
+
         String userId = this.jwtProvider.getIdFromToken(token);
         User sender = this.userRepository.findById(userId).orElseThrow(() -> new NotFoundException(UserError.USER_NOT_FOUND));
         List<MessageElementRequest> elements = request.getElements();

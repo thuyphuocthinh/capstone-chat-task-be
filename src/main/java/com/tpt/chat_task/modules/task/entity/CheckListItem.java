@@ -31,6 +31,9 @@ public class CheckListItem {
     @Column(name = "is_done", nullable = false)
     private boolean isDone = false;
 
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex = 1;
+
     @Column(nullable = false, name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     @CreationTimestamp
     private LocalDateTime createdAt;

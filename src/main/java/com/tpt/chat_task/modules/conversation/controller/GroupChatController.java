@@ -131,7 +131,7 @@ public class GroupChatController {
             @RequestParam(name = "keyword", required = false, defaultValue = "") String keyword
     ) {
         SuccessResponse response = SuccessResponse.builder()
-                .data(this.chatService.searchMessagesByConversationAndKeyword(conversationId, keyword))
+                .data(this.chatService.searchMessage(conversationId, keyword))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

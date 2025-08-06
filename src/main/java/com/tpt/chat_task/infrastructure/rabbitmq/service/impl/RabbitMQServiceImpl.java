@@ -1,16 +1,14 @@
 package com.tpt.chat_task.infrastructure.rabbitmq.service.impl;
 
 import com.tpt.chat_task.infrastructure.rabbitmq.service.RabbitMQService;
+import com.tpt.chat_task.infrastructure.rabbitmq.utils.RabbitMQSchema;
 import com.tpt.chat_task.modules.queue.dto.request.QueueRequest;
 import com.tpt.chat_task.modules.queue.dto.response.QueueResponse;
 import com.tpt.chat_task.modules.queue.service.QueueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.coyote.BadRequestException;
-import org.springframework.amqp.core.AmqpAdmin;
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
@@ -82,7 +80,7 @@ public class RabbitMQServiceImpl implements RabbitMQService {
             // delete queue name from database
             this.queueService.removeQueue(queueName);
         } else {
-            log.info("Queue {} does not exist on listener {}", queueName, listenerId);
+            log.info("Queue {} not exist on listener {}", queueName, listenerId);
         }
     }
 
@@ -125,5 +123,21 @@ public class RabbitMQServiceImpl implements RabbitMQService {
             }
         });
         log.info("All dynamic queues restored.");
+    }
+
+    @Override
+    public void unbindQueue(String listenerId, String queueName, String routingKey, String exchangeName) throws BadRequestException {
+        if(checkQueueExistOnListener(listenerId, queueName)) {
+            this.getRabbitListenerContainer(listenerId).removeQueueNames(queueName);
+            Binding binding = BindingBuilder
+                    .bind(new Queue(queueName))
+                    .to(new DirectExchange(exchangeName))
+                    .with(routingKey);
+            this.rabbitAdmin.removeBinding(binding);
+            this.queueService.removeQueueByNameListenerRoutingExchange(queueName, listenerId, exchangeName, routingKey);
+            log.info("Queue {} unbind from listener {}", queueName, listenerId);
+        } else {
+            log.info("Queue {} does not exist on listener {}", queueName, listenerId);
+        }
     }
 }

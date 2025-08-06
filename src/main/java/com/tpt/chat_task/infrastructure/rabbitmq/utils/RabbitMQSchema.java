@@ -37,6 +37,24 @@ public class RabbitMQSchema {
 
     public static final String CONVERSATION_DELETE_MEMBER_QUEUE = "conversation_delete_member_queue";
 
+    public static final String TASK_ADD_MEMBER_EXCHANGE = "task_add_member_exchange";
+
+    public static final String TASK_ADD_MEMBER_ROUTING_KEY = "task_add_member_routing_key";
+
+    public static final String TASK_ADD_MEMBER_QUEUE = "task_add_member_queue";
+
+    public static final String TASK_DELETE_MEMBER_EXCHANGE = "task_delete_member_exchange";
+
+    public static final String TASK_DELETE_MEMBER_ROUTING_KEY = "task_delete_member_routing_key";
+
+    public static final String TASK_DELETE_MEMBER_QUEUE = "task_delete_member_queue";
+
+    public static final String TASK_QUEUE = "task_queue";
+
+    public static final String TASK_EXCHANGE = "task_exchange";
+
+    public static final String TASK_ROUTING_KEY = "task_routing_key";
+
     public static String getGroupChatRoutingKey(String roomId) {
         return "chat.topic.group." + roomId;
     }
@@ -59,6 +77,10 @@ public class RabbitMQSchema {
 
     public static String getPrivateChatMentionRoutingKey(String roomId, String userId) {
         return "chat.topic.private." + roomId + ".mention.user." + userId;
+    }
+
+    public static String getTaskRoutingKeyByUserId(String taskId) {
+        return "task.topic." + taskId;
     }
 
     public static String getQueueName(String userId) {
