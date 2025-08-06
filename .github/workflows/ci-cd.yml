@@ -91,6 +91,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "docker/docker-compose.${{ steps.env.outputs.env }}.yml"
           target: "/home/${{ secrets.VPS_USER }}/app/${{ steps.env.outputs.env }}/docker-compose.yml"
+          strip_components: 0
+          overwrite: true
 
       - name: SSH and deploy to VPS
         uses: appleboy/ssh-action@v0.1.7
