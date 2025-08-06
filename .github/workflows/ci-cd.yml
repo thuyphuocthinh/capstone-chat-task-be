@@ -90,7 +90,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "docker/docker-compose.${{ steps.env.outputs.env }}.yml"
-          target: "/home/${{ secrets.VPS_USER }}/app/${{ steps.env.outputs.env }}/docker/"
+          target: "/home/${{ secrets.VPS_USER }}/app/${{ steps.env.outputs.env }}"
 
       - name: SSH and deploy to VPS
         uses: appleboy/ssh-action@v0.1.7
@@ -101,7 +101,7 @@ jobs:
           envs: DOCKERHUB_USER,DOCKERHUB_TOKEN
           script: |
             set -e
-            cd /home/${{ secrets.VPS_USER }}/app/${{ steps.env.outputs.env }}/docker
+            cd /home/${{ secrets.VPS_USER }}/app/${{ steps.env.outputs.env }}
 
             # Ghi file .env đúng môi trường
             if [ "${{ steps.env.outputs.env }}" = "prod" ]; then
@@ -119,4 +119,4 @@ jobs:
             docker pull ${{ steps.env.outputs.image_name }}:latest
 
             # Khởi động lại services
-            docker compose -f docker/docker-compose.${{ steps.env.outputs.env }}.yml up -d
+            docker compose -f docker-compose.${{ steps.env.outputs.env }}.yml up -d
