@@ -118,5 +118,9 @@ jobs:
             # Pull image mới
             docker pull ${{ steps.env.outputs.image_name }}:latest
 
-            # Khởi động services
-            docker compose -f docker-compose.${{ steps.env.outputs.env }}.yml up -d
+      - name: Docker Compose Up
+        run: |
+          docker compose -f docker-compose.${{ steps.env.outputs.env }}.yml \
+            --project-name ${{ steps.env.outputs.env }} \
+            up -d
+
